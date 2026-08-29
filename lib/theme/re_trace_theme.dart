@@ -29,7 +29,6 @@ class ReTraceTheme {
         secondary: ReTraceColors.softTeal,
         tertiary: ReTraceColors.softBlue,
         surface: ReTraceColors.surface,
-        background: ReTraceColors.background,
         onPrimary: Colors.white,
         onSecondary: ReTraceColors.primaryText,
         onSurface: ReTraceColors.primaryText,
