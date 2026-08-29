@@ -336,14 +336,40 @@ class ReTraceShell extends StatefulWidget {
 class _ReTraceShellState extends State<ReTraceShell> {
   final PageController _pageController = PageController();
   int _selectedIndex = 0;
+  bool _quietMode = false;
+  List<PlanItem> _planItems = List.of(MockRepositories.todaysPlan);
 
-  final List<Widget> _pages = const [
-    HomeView(),
-    RecoveryView(),
-    PlanView(),
-    InsightsView(),
-    TraceView(),
-  ];
+  void _toggleQuietMode() {
+    setState(() => _quietMode = !_quietMode);
+  }
+
+  void _updatePlan(List<PlanItem> nextPlan) {
+    setState(() => _planItems = nextPlan);
+  }
+
+  void _applyGentlePlan() {
+    final updated = _planItems.map((item) {
+      if (item.title == 'Focus session') {
+        return PlanItem(
+          time: item.time,
+          title: 'Light work',
+          type: 'Recovery',
+          complete: false,
+        );
+      }
+      if (item.title == 'Recovery break' || item.title == 'Lunch + rest') {
+        return PlanItem(
+          time: item.time,
+          title: item.title,
+          type: item.type,
+          complete: true,
+        );
+      }
+      return item;
+    }).toList();
+
+    setState(() => _planItems = updated);
+  }
 
   @override
   void dispose() {
@@ -363,7 +389,23 @@ class _ReTraceShellState extends State<ReTraceShell> {
         controller: _pageController,
         onPageChanged: _onPageChanged,
         physics: const PageScrollPhysics(parent: BouncingScrollPhysics()),
-        children: _pages,
+        children: [
+          HomeView(
+            quietMode: _quietMode,
+            onToggleQuietMode: _toggleQuietMode,
+          ),
+          RecoveryView(quietMode: _quietMode),
+          PlanView(
+            planItems: _planItems,
+            onPlanChanged: _updatePlan,
+            quietMode: _quietMode,
+          ),
+          InsightsView(quietMode: _quietMode),
+          TraceView(
+            onPlanAdjusted: _applyGentlePlan,
+            quietMode: _quietMode,
+          ),
+        ],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
@@ -388,7 +430,14 @@ class _ReTraceShellState extends State<ReTraceShell> {
 }
 
 class HomeView extends StatelessWidget {
-  const HomeView({super.key});
+  const HomeView({
+    super.key,
+    this.quietMode = false,
+    this.onToggleQuietMode,
+  });
+
+  final bool quietMode;
+  final VoidCallback? onToggleQuietMode;
 
   @override
   Widget build(BuildContext context) {
@@ -415,24 +464,67 @@ class HomeView extends StatelessWidget {
       ],
     );
 
+    final isQuiet = quietMode;
+
     return SafeArea(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+        padding: EdgeInsets.fromLTRB(20, 24, 20, isQuiet ? 12 : 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Good morning, ${MockRepositories.user.name}',
-              style: Theme.of(context).textTheme.headlineMedium,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Good morning, ${MockRepositories.user.name}',
+                        style: Theme.of(context).textTheme.headlineMedium,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'How are you feeling today?',
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: ReTraceColors.secondaryText,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch.adaptive(
+                  value: quietMode,
+                  onChanged: (_) => onToggleQuietMode?.call(),
+                  activeThumbColor: ReTraceColors.primarySage,
+                  activeTrackColor: ReTraceColors.primarySage.withValues(alpha: 0.35),
+                ),
+              ],
             ),
-            const SizedBox(height: 4),
-            Text(
-              'How are you feeling today?',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: ReTraceColors.secondaryText,
+            const SizedBox(height: 12),
+            if (quietMode)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: ReTraceColors.softGreen,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.visibility_off_rounded, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Quiet mode is on: calmer layout, fewer motions, easier reading.',
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 22),
+            const SizedBox(height: 10),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(24),
@@ -492,6 +584,27 @@ class HomeView extends StatelessWidget {
                 }
                 return capacityRow;
               },
+            ),
+            const SizedBox(height: 18),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: ReTraceColors.softLavenderAlt,
+                borderRadius: BorderRadius.circular(22),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Something you reported may need medical attention.',
+                      style: Theme.of(context).textTheme.titleLarge),
+                  const SizedBox(height: 8),
+                  Text(
+                    'RE:TRACE does not diagnose concussion and does not medically clear users for work, school, or sport. If symptoms are worsening or severe, please seek medical advice or urgent care.',
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 18),
             Container(
@@ -1664,10 +1777,24 @@ class QuietMomentView extends StatelessWidget {
 }
 
 class RecoveryView extends StatelessWidget {
-  const RecoveryView({super.key});
+  const RecoveryView({
+    super.key,
+    this.quietMode = false,
+  });
+
+  final bool quietMode;
 
   @override
   Widget build(BuildContext context) {
+    final symptomNodes = [
+      _SymptomNode(label: 'Headache', severity: 2, x: 0.20, y: 0.28),
+      _SymptomNode(label: 'Fatigue', severity: 6, x: 0.45, y: 0.35),
+      _SymptomNode(label: 'Sleep', severity: 4, x: 0.68, y: 0.42),
+      _SymptomNode(label: 'Dizziness', severity: 3, x: 0.54, y: 0.68),
+      _SymptomNode(label: 'Brain fog', severity: 6, x: 0.34, y: 0.58),
+      _SymptomNode(label: 'Stress', severity: 4, x: 0.76, y: 0.63),
+    ];
+
     return SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -1677,6 +1804,58 @@ class RecoveryView extends StatelessWidget {
             Text('Recovery', style: Theme.of(context).textTheme.headlineMedium),
             const SizedBox(height: 18),
             const _SegmentTabs(),
+            const SizedBox(height: 18),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: ReTraceColors.surface,
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(color: ReTraceColors.border),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Symptom landscape', style: Theme.of(context).textTheme.titleLarge),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 240,
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: Container(
+                            margin: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: ReTraceColors.border.withValues(alpha: 0.6)),
+                              borderRadius: BorderRadius.circular(24),
+                              color: ReTraceColors.softGreen.withValues(alpha: 0.16),
+                            ),
+                          ),
+                        ),
+                        ...symptomNodes.map((node) {
+                          return Positioned(
+                            left: node.x * 260,
+                            top: node.y * 170,
+                            child: _SymptomNodeChip(
+                              label: node.label,
+                              severity: node.severity,
+                              quietMode: quietMode,
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Brain fog — 6 / 10 • ↑ 2 from yesterday • Above your recent baseline',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: ReTraceColors.secondaryText,
+                    ),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 18),
             _TrendCard(
               title: 'Energy',
@@ -1688,6 +1867,59 @@ class RecoveryView extends StatelessWidget {
               title: 'Sleep',
               points: MockRepositories.sleepTrend,
               insight: 'Your sleep has become more consistent over the past week.',
+            ),
+            const SizedBox(height: 18),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: ReTraceColors.surface,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: ReTraceColors.border),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('What changed?', style: Theme.of(context).textTheme.titleLarge),
+                  const SizedBox(height: 10),
+                  const _ChangeRow(label: 'Sleep', value: '↓ 48 min from recent average'),
+                  const _ChangeRow(label: 'Cognitive load', value: '↑ Higher than usual'),
+                  const _ChangeRow(label: 'Headache', value: '→ Similar to yesterday'),
+                  const _ChangeRow(label: 'Activity', value: '↑ Slightly higher'),
+                  const SizedBox(height: 12),
+                  Text(
+                    'TRACE noticed: “Your fatigue and cognitive symptoms were both higher after yesterday\'s higher-load day.”',
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: ReTraceColors.surface,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: ReTraceColors.border),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Recovery journey', style: Theme.of(context).textTheme.titleLarge),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: const [
+                      _JourneyStep('Day 1', 'Higher symptoms'),
+                      _JourneyStep('Day 3', 'Sleep improving'),
+                      _JourneyStep('Day 7', 'Energy rising'),
+                      _JourneyStep('Today', 'Closer to baseline'),
+                    ],
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 30),
             Text('Your baseline', style: Theme.of(context).textTheme.titleLarge),
@@ -1711,6 +1943,108 @@ class RecoveryView extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _SymptomNode {
+  final String label;
+  final int severity;
+  final double x;
+  final double y;
+
+  const _SymptomNode({
+    required this.label,
+    required this.severity,
+    required this.x,
+    required this.y,
+  });
+}
+
+class _SymptomNodeChip extends StatelessWidget {
+  final String label;
+  final int severity;
+  final bool quietMode;
+
+  const _SymptomNodeChip({
+    required this.label,
+    required this.severity,
+    required this.quietMode,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final size = (18 + severity * 3).toDouble();
+    return AnimatedContainer(
+      duration: quietMode ? Duration.zero : const Duration(milliseconds: 260),
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: ReTraceColors.primarySage,
+        boxShadow: [
+          BoxShadow(
+            color: ReTraceColors.primarySage.withValues(alpha: 0.25),
+            blurRadius: 14,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: Center(
+        child: Text(
+          label.split(' ').first.substring(0, 1),
+          style: const TextStyle(fontSize: 8, color: Colors.white, fontWeight: FontWeight.w700),
+        ),
+      ),
+    );
+  }
+}
+
+class _ChangeRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _ChangeRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: Theme.of(context).textTheme.bodyLarge),
+          Flexible(
+            child: Text(value, textAlign: TextAlign.right, style: Theme.of(context).textTheme.labelLarge),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _JourneyStep extends StatelessWidget {
+  final String label;
+  final String detail;
+
+  const _JourneyStep(this.label, this.detail);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: ReTraceColors.softGreen,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: Theme.of(context).textTheme.labelLarge),
+          const SizedBox(height: 4),
+          Text(detail, style: Theme.of(context).textTheme.bodySmall),
+        ],
       ),
     );
   }
@@ -1849,10 +2183,21 @@ class _BaselineRow extends StatelessWidget {
 }
 
 class PlanView extends StatelessWidget {
-  const PlanView({super.key});
+  const PlanView({
+    super.key,
+    this.planItems = const [],
+    this.onPlanChanged,
+    this.quietMode = false,
+  });
+
+  final List<PlanItem> planItems;
+  final ValueChanged<List<PlanItem>>? onPlanChanged;
+  final bool quietMode;
 
   @override
   Widget build(BuildContext context) {
+    final items = planItems.isEmpty ? MockRepositories.todaysPlan : planItems;
+
     return SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -1861,7 +2206,65 @@ class PlanView extends StatelessWidget {
           children: [
             Text('Your day', style: Theme.of(context).textTheme.headlineMedium),
             const SizedBox(height: 18),
-            ...(MockRepositories.todaysPlan.map<Widget>((item) => _PlanRow(item: item)).toList()),
+            ...items.map<Widget>((item) => _PlanRow(
+                  item: item,
+                  quietMode: quietMode,
+                  onToggle: () {
+                    final updates = items.map((entry) {
+                      if (entry.title == item.title && entry.time == item.time) {
+                        return PlanItem(
+                          time: entry.time,
+                          title: entry.title,
+                          type: entry.type,
+                          complete: !entry.complete,
+                        );
+                      }
+                      return entry;
+                    }).toList();
+                    onPlanChanged?.call(updates);
+                  },
+                )),
+            const SizedBox(height: 18),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: ReTraceColors.surface,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: ReTraceColors.border),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Return to learn', style: Theme.of(context).textTheme.titleLarge),
+                  const SizedBox(height: 12),
+                  const _LearningTag('Reading', 'Moderate'),
+                  const _LearningTag('Lecture', 'Moderate'),
+                  const _LearningTag('Assignments', 'High'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: ReTraceColors.surface,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: ReTraceColors.border),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Return to activity', style: Theme.of(context).textTheme.titleLarge),
+                  const SizedBox(height: 12),
+                  const _ActivityStep('Everyday activity'),
+                  const _ActivityStep('Light activity'),
+                  const _ActivityStep('Moderate activity'),
+                  const _ActivityStep('Higher activity • Healthcare-provider guided'),
+                ],
+              ),
+            ),
             const SizedBox(height: 18),
             SizedBox(
               width: double.infinity,
@@ -1883,16 +2286,23 @@ class PlanView extends StatelessWidget {
 
 class _PlanRow extends StatelessWidget {
   final PlanItem item;
+  final bool quietMode;
+  final VoidCallback onToggle;
 
-  const _PlanRow({required this.item});
+  const _PlanRow({
+    required this.item,
+    required this.quietMode,
+    required this.onToggle,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return AnimatedContainer(
+      duration: quietMode ? Duration.zero : const Duration(milliseconds: 200),
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: ReTraceColors.surface,
+        color: item.complete ? ReTraceColors.softGreen : ReTraceColors.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: ReTraceColors.border),
       ),
@@ -1912,15 +2322,65 @@ class _PlanRow extends StatelessWidget {
               ],
             ),
           ),
-          Checkbox(value: item.complete, onChanged: (_) {}),
+          Checkbox(value: item.complete, onChanged: (_) => onToggle()),
         ],
       ),
     );
   }
 }
 
+class _LearningTag extends StatelessWidget {
+  final String title;
+  final String level;
+
+  const _LearningTag(this.title, this.level);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: ReTraceColors.softGreen,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.labelLarge),
+          Text(level, style: Theme.of(context).textTheme.labelLarge),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActivityStep extends StatelessWidget {
+  final String label;
+
+  const _ActivityStep(this.label);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: ReTraceColors.softBlueAlt,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(label, style: Theme.of(context).textTheme.labelLarge),
+    );
+  }
+}
+
 class InsightsView extends StatelessWidget {
-  const InsightsView({super.key});
+  const InsightsView({
+    super.key,
+    this.quietMode = false,
+  });
+
+  final bool quietMode;
 
   @override
   Widget build(BuildContext context) {
@@ -1933,7 +2393,8 @@ class InsightsView extends StatelessWidget {
             Text('Your insights', style: Theme.of(context).textTheme.headlineMedium),
             const SizedBox(height: 18),
             ...(MockRepositories.insights.map<Widget>((insight) {
-              return Container(
+              return AnimatedContainer(
+                duration: quietMode ? Duration.zero : const Duration(milliseconds: 220),
                 width: double.infinity,
                 margin: const EdgeInsets.only(bottom: 14),
                 padding: const EdgeInsets.all(18),
@@ -1972,7 +2433,14 @@ class InsightsView extends StatelessWidget {
 }
 
 class TraceView extends StatefulWidget {
-  const TraceView({super.key});
+  const TraceView({
+    super.key,
+    this.onPlanAdjusted,
+    this.quietMode = false,
+  });
+
+  final VoidCallback? onPlanAdjusted;
+  final bool quietMode;
 
   @override
   State<TraceView> createState() => _TraceViewState();
@@ -1989,6 +2457,12 @@ class _TraceViewState extends State<TraceView> {
 
   @override
   Widget build(BuildContext context) {
+    final promptLabels = [
+      'Why am I tired today?',
+      'What changed?',
+      'Plan my day.',
+    ];
+
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -2004,38 +2478,89 @@ class _TraceViewState extends State<TraceView> {
             const SizedBox(height: 18),
             Expanded(
               child: ListView(
-                children: MockRepositories.traceHistory.map((message) {
-                  final isUser = message.fromUser;
-                  return Align(
-                    alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                children: [
+                  ...MockRepositories.traceHistory.map((message) {
+                    final isUser = message.fromUser;
+                    return Align(
+                      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        constraints: const BoxConstraints(maxWidth: 260),
+                        decoration: BoxDecoration(
+                          color: isUser ? ReTraceColors.primarySage : ReTraceColors.surface,
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: Text(
+                          message.text,
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: isUser ? Colors.white : ReTraceColors.primaryText,
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                  Align(
+                    alignment: Alignment.centerLeft,
                     child: Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       constraints: const BoxConstraints(maxWidth: 260),
                       decoration: BoxDecoration(
-                        color: isUser ? ReTraceColors.primarySage : ReTraceColors.surface,
+                        color: ReTraceColors.surface,
                         borderRadius: BorderRadius.circular(18),
                       ),
-                      child: Text(
-                        message.text,
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: isUser ? Colors.white : ReTraceColors.primaryText,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Your fatigue is a little higher than your recent baseline, and yesterday was a higher-load day.',
+                            style: Theme.of(context).textTheme.bodyLarge,
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: FilledButton(
+                                  onPressed: () {
+                                    widget.onPlanAdjusted?.call();
+                                    setState(() {});
+                                  },
+                                  child: const Text('Make afternoon gentler'),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: () {},
+                                  child: const Text('Why?'),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: () {},
+                                  child: const Text('Keep my plan'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
-                  );
-                }).toList(),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 12),
-            const Wrap(
+            Wrap(
               spacing: 10,
               runSpacing: 10,
-              children: [
-                _PromptChip('Why am I tired today?'),
-                _PromptChip('What changed?'),
-                _PromptChip('Plan my day.'),
-              ],
+              children: promptLabels.map((label) => _PromptChip(label)).toList(),
             ),
             const SizedBox(height: 14),
             Row(
