@@ -1,6 +1,7 @@
 ﻿import 'package:re_trace/models/re_trace_models.dart';
+import 'package:re_trace/repositories/re_trace_repository.dart';
 
-class MockRepositories {
+class MockRepositories extends ReTraceRepository {
   static const UserProfile user = UserProfile(
     name: 'Alex',
     recoveryState: 'Steady',
@@ -84,4 +85,31 @@ class MockRepositories {
     BreathingPreset(id: 'balanced_01', name: 'Balanced', inhale: 4, hold: 4, exhale: 4, rest: 2),
     BreathingPreset(id: 'gentle_01', name: 'Gentle', inhale: 3, hold: 1, exhale: 5, rest: 2),
   ];
+
+  @override
+  UserProfile get currentUser => user;
+
+  @override
+  RecoverySnapshot get currentRecoveryData => currentRecovery;
+
+  @override
+  List<TrendPoint> get energyTrendData => energyTrend;
+
+  @override
+  List<TrendPoint> get sleepTrendData => sleepTrend;
+
+  @override
+  List<InsightCard> get insightCards => insights;
+
+  @override
+  List<PlanItem> get planItems => todaysPlan;
+
+  @override
+  List<TraceMessage> get traceMessages => traceHistory;
+
+  @override
+  List<QuoteItem> get quoteItems => quotes;
+
+  @override
+  List<BreathingPreset> get breathingProfiles => breathingPresets;
 }

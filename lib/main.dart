@@ -819,11 +819,11 @@ class ResetView extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               _ResetOptionCard(
-                title: 'Bloom',
-                subtitle: 'A tiny floral moment to help you soften.',
-                icon: Icons.local_florist_rounded,
+                title: 'Pattern Garden',
+                subtitle: 'A gentle memory-and-focus game to settle the mind.',
+                icon: Icons.eco_rounded,
                 onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const FidgetView()),
+                  MaterialPageRoute(builder: (_) => const PatternGardenView()),
                 ),
               ),
               const SizedBox(height: 14),
@@ -912,7 +912,7 @@ class _BreatheViewState extends State<BreatheView>
   late final AnimationController _orbController;
   Timer? _sessionTimer;
   int _selectedDuration = 180;
-  double _elapsedSeconds = 0;
+  Duration _elapsed = Duration.zero;
   bool _isRunning = true;
   bool _completed = false;
   BreathingPreset _selectedPreset = MockRepositories.breathingPresets.first;
@@ -922,9 +922,9 @@ class _BreatheViewState extends State<BreatheView>
     super.initState();
     _orbController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2000),
+      duration: const Duration(milliseconds: 2200),
     )..repeat(reverse: true);
-    _startTimer();
+    _startSession();
   }
 
   @override
@@ -934,49 +934,78 @@ class _BreatheViewState extends State<BreatheView>
     super.dispose();
   }
 
-  void _startTimer() {
+  void _startSession({bool resetElapsed = true}) {
+    if (resetElapsed) {
+      _elapsed = Duration.zero;
+    }
+    _completed = false;
+    _isRunning = true;
+    _phaseTimerTick();
+    if (_orbController.isAnimating == false) {
+      _orbController.repeat(reverse: true);
+    }
+  }
+
+  void _phaseTimerTick() {
     _sessionTimer?.cancel();
 
     _sessionTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
-      if (!_isRunning || _completed) {
+      if (!mounted || !_isRunning || _completed) {
         return;
       }
 
-      final nextElapsed = _elapsedSeconds + 0.1;
-      if (nextElapsed >= _selectedDuration) {
+      final nextElapsed = _elapsed + const Duration(milliseconds: 100);
+      if (nextElapsed >= Duration(seconds: _selectedDuration)) {
+        _sessionTimer?.cancel();
+        if (!mounted) return;
         setState(() {
-          _elapsedSeconds = _selectedDuration.toDouble();
+          _elapsed = Duration(seconds: _selectedDuration);
           _completed = true;
           _isRunning = false;
         });
-        _sessionTimer?.cancel();
         _orbController.stop(canceled: false);
         return;
       }
 
-      setState(() {
-        _elapsedSeconds = nextElapsed;
-      });
+      if (mounted) {
+        setState(() {
+          _elapsed = nextElapsed;
+        });
+      }
     });
   }
 
   void _togglePause() {
+    if (_completed) return;
     setState(() {
       _isRunning = !_isRunning;
     });
+
     if (_isRunning) {
       _orbController.repeat(reverse: true);
-      _startTimer();
-    } else {
-      _orbController.stop(canceled: false);
-      _sessionTimer?.cancel();
+      _phaseTimerTick();
+      return;
     }
+
+    _sessionTimer?.cancel();
+    _orbController.stop(canceled: false);
+  }
+
+  void _resetSession() {
+    _sessionTimer?.cancel();
+    setState(() {
+      _elapsed = Duration.zero;
+      _completed = false;
+      _isRunning = true;
+    });
+    _orbController.repeat(reverse: true);
+    _phaseTimerTick();
   }
 
   String get _phaseLabel {
     final total =
         _selectedPreset.inhale + _selectedPreset.hold + _selectedPreset.exhale + _selectedPreset.rest;
-    final cycle = (_elapsedSeconds % total).toDouble();
+    final cycle = (_elapsed.inSeconds % total);
 
     if (cycle < _selectedPreset.inhale) return 'Inhale';
     if (cycle < _selectedPreset.inhale + _selectedPreset.hold) return 'Hold';
@@ -989,7 +1018,7 @@ class _BreatheViewState extends State<BreatheView>
   double get _orbScale {
     final total =
         _selectedPreset.inhale + _selectedPreset.hold + _selectedPreset.exhale + _selectedPreset.rest;
-    final cycle = (_elapsedSeconds % total).toDouble();
+    final cycle = (_elapsed.inSeconds % total);
 
     if (cycle < _selectedPreset.inhale) {
       final progress = cycle / _selectedPreset.inhale;
@@ -1007,16 +1036,16 @@ class _BreatheViewState extends State<BreatheView>
   }
 
   String get _timeRemaining {
-    final remaining = (_selectedDuration - _elapsedSeconds).ceil();
-    final minutes = (remaining ~/ 60).toString().padLeft(2, '0');
-    final seconds = (remaining % 60).toString().padLeft(2, '0');
+    final remaining = Duration(seconds: _selectedDuration) - _elapsed;
+    final totalSeconds = remaining.inSeconds.clamp(0, Duration.secondsPerDay);
+    final minutes = (totalSeconds ~/ 60).toString().padLeft(2, '0');
+    final seconds = (totalSeconds % 60).toString().padLeft(2, '0');
     return '$minutes:$seconds';
   }
 
   @override
   Widget build(BuildContext context) {
-    final progress = (_elapsedSeconds / _selectedDuration).clamp(0.0, 1.0);
-
+    final progress = (_elapsed.inSeconds / _selectedDuration).clamp(0.0, 1.0);
     return Scaffold(
       backgroundColor: ReTraceColors.background,
       appBar: AppBar(title: const Text('Breathe')),
@@ -1047,14 +1076,15 @@ class _BreatheViewState extends State<BreatheView>
                     label: Text(preset.name),
                     selected: selected,
                     onSelected: (_) {
+                      _sessionTimer?.cancel();
                       setState(() {
                         _selectedPreset = preset;
-                        _elapsedSeconds = 0;
+                        _elapsed = Duration.zero;
                         _completed = false;
                         _isRunning = true;
                       });
                       _orbController.repeat(reverse: true);
-                      _startTimer();
+                      _phaseTimerTick();
                     },
                   );
                 }).toList(),
@@ -1069,14 +1099,15 @@ class _BreatheViewState extends State<BreatheView>
                     label: Text('${seconds ~/ 60} min'),
                     selected: selected,
                     onSelected: (_) {
+                      _sessionTimer?.cancel();
                       setState(() {
                         _selectedDuration = seconds;
-                        _elapsedSeconds = 0;
+                        _elapsed = Duration.zero;
                         _completed = false;
                         _isRunning = true;
                       });
                       _orbController.repeat(reverse: true);
-                      _startTimer();
+                      _phaseTimerTick();
                     },
                   );
                 }).toList(),
@@ -1116,15 +1147,7 @@ class _BreatheViewState extends State<BreatheView>
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: OutlinedButton(
-                                      onPressed: () {
-                                        setState(() {
-                                          _elapsedSeconds = 0;
-                                          _completed = false;
-                                          _isRunning = true;
-                                        });
-                                        _orbController.repeat(reverse: true);
-                                        _startTimer();
-                                      },
+                                      onPressed: _resetSession,
                                       child: const Text('Breathe again'),
                                     ),
                                   ),
@@ -1202,13 +1225,13 @@ class _BreatheViewState extends State<BreatheView>
                                     const SizedBox(width: 12),
                                     OutlinedButton(
                                       onPressed: () {
+                                        _sessionTimer?.cancel();
+                                        _orbController.stop(canceled: false);
                                         setState(() {
-                                          _elapsedSeconds = _selectedDuration.toDouble();
+                                          _elapsed = Duration(seconds: _selectedDuration);
                                           _completed = true;
                                           _isRunning = false;
                                         });
-                                        _sessionTimer?.cancel();
-                                        _orbController.stop(canceled: false);
                                       },
                                       child: const Text('End'),
                                     ),
@@ -1228,145 +1251,339 @@ class _BreatheViewState extends State<BreatheView>
   }
 }
 
-class FidgetView extends StatefulWidget {
-  const FidgetView({super.key});
+class PatternGardenView extends StatefulWidget {
+  const PatternGardenView({super.key});
 
   @override
-  State<FidgetView> createState() => _FidgetViewState();
+  State<PatternGardenView> createState() => _PatternGardenViewState();
 }
 
-class _FidgetViewState extends State<FidgetView> {
-  int _bloomLevel = 0;
-  bool _completed = false;
+class _GardenObject {
+  final String label;
+  final IconData icon;
+  final bool isCircle;
 
-  void _bloom() {
+  const _GardenObject({required this.label, required this.icon, required this.isCircle});
+}
+
+class _PatternGardenViewState extends State<PatternGardenView> {
+  final List<_GardenObject> _gardenObjects = const [
+    _GardenObject(label: 'A', icon: Icons.circle, isCircle: true),
+    _GardenObject(label: 'B', icon: Icons.forest_rounded, isCircle: false),
+    _GardenObject(label: 'C', icon: Icons.spa_rounded, isCircle: true),
+    _GardenObject(label: 'D', icon: Icons.park_rounded, isCircle: false),
+    _GardenObject(label: 'E', icon: Icons.brightness_1_rounded, isCircle: true),
+    _GardenObject(label: 'F', icon: Icons.filter_vintage_rounded, isCircle: false),
+    _GardenObject(label: 'G', icon: Icons.eco_rounded, isCircle: true),
+  ];
+
+  List<int> _pattern = [];
+  List<int> _selection = [];
+  int _level = 1;
+  int _activeIndex = -1;
+  int _patternStepIndex = 0;
+  bool _showingPattern = false;
+  bool _sessionComplete = false;
+  String _feedback = 'Find your rhythm.';
+  Timer? _patternTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startRound();
+  }
+
+  @override
+  void dispose() {
+    _patternTimer?.cancel();
+    super.dispose();
+  }
+
+  int get _objectCount => math.min(4 + ((_level - 1) ~/ 2), 7);
+  int get _patternLength => math.min(3 + ((_level - 1)), _objectCount);
+
+  void _startRound() {
+    if (!mounted) return;
+    _patternTimer?.cancel();
+
+    final random = math.Random();
+    final pattern = <int>[];
+    for (var i = 0; i < _patternLength; i++) {
+      pattern.add(random.nextInt(_objectCount));
+    }
+
     setState(() {
-      _bloomLevel = (_bloomLevel + 1).clamp(0, 8);
-      _completed = _bloomLevel >= 8;
+      _pattern = pattern;
+      _selection = [];
+      _feedback = 'Observe';
+      _showingPattern = true;
+      _activeIndex = -1;
+      _patternStepIndex = 0;
+    });
+
+    _showNextPatternStep();
+  }
+
+  void _showNextPatternStep() {
+    if (!mounted) return;
+    if (_patternStepIndex >= _pattern.length) {
+      setState(() {
+        _showingPattern = false;
+        _feedback = 'Your turn';
+      });
+      return;
+    }
+
+    final index = _pattern[_patternStepIndex];
+    setState(() => _activeIndex = index);
+
+    _patternTimer = Timer(const Duration(milliseconds: 500), () {
+      if (!mounted) return;
+      setState(() => _activeIndex = -1);
+
+      _patternStepIndex++;
+      if (_patternStepIndex >= _pattern.length) {
+        if (!mounted) return;
+        setState(() {
+          _showingPattern = false;
+          _feedback = 'Your turn';
+        });
+        return;
+      }
+
+      _patternTimer = Timer(const Duration(milliseconds: 180), () {
+        if (!mounted) return;
+        _showNextPatternStep();
+      });
     });
   }
 
-  void _resetBloom() {
+  void _handleSelection(int index) {
+    if (_showingPattern || _sessionComplete) return;
+
     setState(() {
-      _bloomLevel = 0;
-      _completed = false;
+      _activeIndex = index;
+      _selection = [..._selection, index];
+    });
+
+    final expected = _pattern[_selection.length - 1];
+    if (index != expected) {
+      setState(() {
+        _feedback = 'That\'s okay. Take another look.';
+        _selection = [];
+      });
+      _patternTimer = Timer(const Duration(milliseconds: 700), () {
+        if (!mounted) return;
+        setState(() => _activeIndex = -1);
+        _startRound();
+      });
+      return;
+    }
+
+    if (_selection.length == _pattern.length) {
+      if (_level >= 4) {
+        setState(() {
+          _feedback = 'Pattern complete.';
+          _sessionComplete = true;
+        });
+        return;
+      }
+
+      setState(() {
+        _feedback = 'Beautiful. Keep going.';
+      });
+      _patternTimer = Timer(const Duration(milliseconds: 700), () {
+        if (!mounted) return;
+        setState(() {
+          _activeIndex = -1;
+          _level++;
+        });
+        _startRound();
+      });
+      return;
+    }
+
+    setState(() {
+      _feedback = 'Nice. Your attention is here.';
+    });
+    _patternTimer = Timer(const Duration(milliseconds: 180), () {
+      if (!mounted) return;
+      setState(() => _activeIndex = -1);
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: ReTraceColors.background,
-      appBar: AppBar(title: const Text('Bloom')),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
+    final items = List.generate(_objectCount, (index) {
+      final object = _gardenObjects[index];
+      final isSelected = _selection.contains(index);
+      final isActive = _activeIndex == index;
+
+      return GestureDetector(
+        onTap: () => _handleSelection(index),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
+          width: 72,
+          height: 72,
+          decoration: BoxDecoration(
+            shape: object.isCircle ? BoxShape.circle : BoxShape.rectangle,
+            borderRadius: object.isCircle ? null : BorderRadius.circular(22),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: isActive || isSelected
+                  ? [
+                      ReTraceColors.primarySage,
+                      ReTraceColors.softTeal,
+                    ]
+                  : [
+                      ReTraceColors.surface,
+                      ReTraceColors.softGreen,
+                    ],
+            ),
+            border: Border.all(
+              color: isActive || isSelected
+                  ? ReTraceColors.primarySage
+                  : ReTraceColors.border,
+              width: isActive || isSelected ? 2.5 : 1,
+            ),
+            boxShadow: isActive || isSelected
+                ? [
+                    BoxShadow(
+                      color: ReTraceColors.primarySage.withValues(alpha: 0.18),
+                      blurRadius: 18,
+                      spreadRadius: 3,
+                    ),
+                  ]
+                : null,
+          ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              if (!_completed)
-                Text(
-                  'Touch the bloom and let it open.',
-                  style: Theme.of(context).textTheme.headlineMedium,
-                  textAlign: TextAlign.center,
-                ),
-              if (_completed)
-                Text(
-                  'A little more space.',
-                  style: Theme.of(context).textTheme.headlineMedium,
-                  textAlign: TextAlign.center,
-                ),
-              const SizedBox(height: 24),
-              if (_completed)
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: ReTraceColors.surface,
-                    borderRadius: BorderRadius.circular(28),
-                    border: Border.all(color: ReTraceColors.border),
+              Icon(object.icon, color: ReTraceColors.primaryText, size: 22),
+              const SizedBox(height: 4),
+              Text(
+                object.label,
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+            ],
+          ),
+        ),
+      );
+    });
+
+    return Scaffold(
+      backgroundColor: ReTraceColors.background,
+      appBar: AppBar(title: const Text('Pattern Garden')),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: _sessionComplete
+              ? Center(
+                  child: Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: ReTraceColors.surface,
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(color: ReTraceColors.border),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'A little more space.',
+                          style: Theme.of(context).textTheme.headlineMedium,
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Nice work. Take another moment if you\'d like.',
+                          style: Theme.of(context).textTheme.bodyLarge,
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 18),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: FilledButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _level = 1;
+                                    _sessionComplete = false;
+                                    _selection = [];
+                                  });
+                                  _startRound();
+                                },
+                                child: const Text('Play again'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                                child: const Text('Done'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                  child: Column(
-                    children: [
-                      Text(
-                        'Take another moment, or return whenever you\'re ready.',
-                        style: Theme.of(context).textTheme.bodyLarge,
-                        textAlign: TextAlign.center,
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Finding your rhythm',
+                      style: Theme.of(context).textTheme.headlineMedium,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      _feedback,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: ReTraceColors.secondaryText,
                       ),
-                      const SizedBox(height: 18),
-                      Row(
+                    ),
+                    const SizedBox(height: 18),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: ReTraceColors.surface,
+                        borderRadius: BorderRadius.circular(28),
+                        border: Border.all(color: ReTraceColors.border),
+                      ),
+                      child: Column(
                         children: [
-                          Expanded(
-                            child: FilledButton(
-                              onPressed: _resetBloom,
-                              child: const Text('Bloom again'),
-                            ),
+                          Wrap(
+                            spacing: 14,
+                            runSpacing: 14,
+                            alignment: WrapAlignment.center,
+                            children: items,
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () => Navigator.of(context).pop(),
-                              child: const Text('Done'),
-                            ),
+                          const SizedBox(height: 18),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: ReTraceColors.softGreen,
+                                  borderRadius: BorderRadius.circular(100),
+                                ),
+                                child: Text(
+                                  'Level $_level',
+                                  style: Theme.of(context).textTheme.labelLarge,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
-                  ),
-                )
-              else
-                GestureDetector(
-                  onTap: _bloom,
-                  child: SizedBox(
-                    width: 280,
-                    height: 280,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: List.generate(8, (index) {
-                        final angle = (index / 8) * (2 * math.pi);
-                        final scale = 0.55 + (_bloomLevel / 8) * 0.9;
-                        final offset = 36 + (_bloomLevel * 8.0);
-                        final petalSize = 80 + (_bloomLevel * 12);
-
-                        return Transform.rotate(
-                          angle: angle,
-                          child: Transform.translate(
-                            offset: Offset(
-                              (offset * math.cos(angle)) * 0.8,
-                              (offset * math.sin(angle)) * 0.8,
-                            ),
-                            child: Transform.scale(
-                              scale: scale,
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 350),
-                                curve: Curves.easeOutBack,
-                                width: petalSize.toDouble(),
-                                height: petalSize * 1.3,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(100),
-                                  gradient: RadialGradient(
-                                    colors: [
-                                      ReTraceColors.softLavender.withValues(alpha: 0.9),
-                                      ReTraceColors.primarySage.withValues(alpha: 0.75),
-                                    ],
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: ReTraceColors.softLavender.withValues(alpha: 0.25),
-                                      blurRadius: 24,
-                                      spreadRadius: 2,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      }),
                     ),
-                  ),
+                  ],
                 ),
-            ],
-          ),
         ),
       ),
     );
