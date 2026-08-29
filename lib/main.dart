@@ -1,4 +1,5 @@
 ﻿import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:re_trace/data/mock_repositories.dart';
@@ -154,30 +155,44 @@ class OnboardingScreen extends StatefulWidget {
   State<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
+class _OnboardingScreenData {
+  final String title;
+  final String body;
+  final Color accent;
+  final IconData icon;
+
+  const _OnboardingScreenData({
+    required this.title,
+    required this.body,
+    required this.accent,
+    required this.icon,
+  });
+}
+
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _page = 0;
 
-  final List<_OnboardingPageData> _pages = const [
-    _OnboardingPageData(
+  final List<_OnboardingScreenData> _pages = const [
+    _OnboardingScreenData(
       title: 'Recovery is personal',
       body: 'Everyone recovers differently.',
       accent: ReTraceColors.softGreen,
       icon: Icons.favorite_outline,
     ),
-    _OnboardingPageData(
+    _OnboardingScreenData(
       title: 'Understand your patterns',
       body: 'RE:TRACE brings your daily experiences and available health signals together.',
       accent: ReTraceColors.softBlueAlt,
       icon: Icons.insights_outlined,
     ),
-    _OnboardingPageData(
+    _OnboardingScreenData(
       title: 'Plan around your capacity',
       body: 'Structure your day around how you\'re actually feeling.',
       accent: ReTraceColors.softLavenderAlt,
       icon: Icons.calendar_month_outlined,
     ),
-    _OnboardingPageData(
+    _OnboardingScreenData(
       title: 'Meet TRACE',
       body: 'Your calm AI recovery companion.',
       accent: ReTraceColors.warmNeutral,
@@ -311,20 +326,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 }
 
-class _OnboardingPageData {
-  final String title;
-  final String body;
-  final Color accent;
-  final IconData icon;
-
-  const _OnboardingPageData({
-    required this.title,
-    required this.body,
-    required this.accent,
-    required this.icon,
-  });
-}
-
 class ReTraceShell extends StatefulWidget {
   const ReTraceShell({super.key});
 
@@ -333,6 +334,7 @@ class ReTraceShell extends StatefulWidget {
 }
 
 class _ReTraceShellState extends State<ReTraceShell> {
+  final PageController _pageController = PageController();
   int _selectedIndex = 0;
 
   final List<Widget> _pages = const [
@@ -344,15 +346,35 @@ class _ReTraceShellState extends State<ReTraceShell> {
   ];
 
   @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _onPageChanged(int index) {
+    if (!mounted) return;
+    setState(() => _selectedIndex = index);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _selectedIndex,
+      body: PageView(
+        controller: _pageController,
+        onPageChanged: _onPageChanged,
+        physics: const PageScrollPhysics(parent: BouncingScrollPhysics()),
         children: _pages,
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
-        onDestinationSelected: (index) => setState(() => _selectedIndex = index),
+        onDestinationSelected: (index) {
+          setState(() => _selectedIndex = index);
+          _pageController.animateToPage(
+            index,
+            duration: const Duration(milliseconds: 320),
+            curve: Curves.easeOutCubic,
+          );
+        },
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home_rounded), label: 'Home'),
           NavigationDestination(icon: Icon(Icons.trending_up_rounded), label: 'Recovery'),
@@ -371,6 +393,28 @@ class HomeView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final recovery = MockRepositories.currentRecovery;
+    final capacityRow = Row(
+      children: [
+        Expanded(
+          child: _StatCard(
+            label: 'Today\'s capacity',
+            value: recovery.capacity,
+            subtitle: recovery.capacitySummary,
+            accent: ReTraceColors.softBlueAlt,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _StatCard(
+            label: 'Sleep rhythm',
+            value: recovery.sleep,
+            subtitle: 'Steady and supportive',
+            accent: ReTraceColors.softGreen,
+          ),
+        ),
+      ],
+    );
+
     return SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
@@ -436,26 +480,18 @@ class HomeView extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 18),
-            Row(
-              children: [
-                Expanded(
-                  child: _StatCard(
-                    label: 'Today\'s capacity',
-                    value: recovery.capacity,
-                    subtitle: recovery.capacitySummary,
-                    accent: ReTraceColors.softBlueAlt,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _StatCard(
-                    label: 'Key indicators',
-                    value: 'Sleep',
-                    subtitle: recovery.sleep,
-                    accent: ReTraceColors.softGreen,
-                  ),
-                ),
-              ],
+            LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth < 360) {
+                  return Column(
+                    children: [
+                      capacityRow,
+                      const SizedBox(height: 12),
+                    ],
+                  );
+                }
+                return capacityRow;
+              },
             ),
             const SizedBox(height: 18),
             Container(
@@ -646,7 +682,18 @@ class _StatCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Text(value, style: Theme.of(context).textTheme.headlineMedium),
+          SizedBox(
+            width: double.infinity,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                value,
+                maxLines: 1,
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
+            ),
+          ),
           const SizedBox(height: 8),
           Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
         ],
@@ -729,10 +776,7 @@ class _QuoteCardState extends State<_QuoteCard> {
             ],
           ),
           const SizedBox(height: 10),
-          Text(
-            '“${quote.text}”',
-            style: Theme.of(context).textTheme.bodyLarge,
-          ),
+          Text('“${quote.text}”', style: Theme.of(context).textTheme.bodyLarge),
         ],
       ),
     );
@@ -746,9 +790,7 @@ class ResetView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: ReTraceColors.background,
-      appBar: AppBar(
-        title: const Text('Reset'),
-      ),
+      appBar: AppBar(title: const Text('Reset')),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -777,9 +819,9 @@ class ResetView extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               _ResetOptionCard(
-                title: 'Fidget',
-                subtitle: 'A tactile, low-pressure sensory break.',
-                icon: Icons.touch_app_rounded,
+                title: 'Bloom',
+                subtitle: 'A tiny floral moment to help you soften.',
+                icon: Icons.local_florist_rounded,
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const FidgetView()),
                 ),
@@ -789,13 +831,9 @@ class ResetView extends StatelessWidget {
                 title: 'Quiet moment',
                 subtitle: 'Just a pause without effort.',
                 icon: Icons.spa_rounded,
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('A quiet moment is available whenever you need it.'),
-                    ),
-                  );
-                },
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const QuietMomentView()),
+                ),
               ),
             ],
           ),
@@ -849,10 +887,7 @@ class _ResetOptionCard extends StatelessWidget {
                 children: [
                   Text(title, style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
+                  Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
                 ],
               ),
             ),
@@ -877,7 +912,7 @@ class _BreatheViewState extends State<BreatheView>
   late final AnimationController _orbController;
   Timer? _sessionTimer;
   int _selectedDuration = 180;
-  int _elapsed = 0;
+  double _elapsedSeconds = 0;
   bool _isRunning = true;
   bool _completed = false;
   BreathingPreset _selectedPreset = MockRepositories.breathingPresets.first;
@@ -887,7 +922,7 @@ class _BreatheViewState extends State<BreatheView>
     super.initState();
     _orbController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2200),
+      duration: const Duration(milliseconds: 2000),
     )..repeat(reverse: true);
     _startTimer();
   }
@@ -901,18 +936,26 @@ class _BreatheViewState extends State<BreatheView>
 
   void _startTimer() {
     _sessionTimer?.cancel();
-    _sessionTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+
+    _sessionTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
       if (!_isRunning || _completed) {
         return;
       }
 
-      setState(() {
-        _elapsed += 1;
-        if (_elapsed >= _selectedDuration) {
+      final nextElapsed = _elapsedSeconds + 0.1;
+      if (nextElapsed >= _selectedDuration) {
+        setState(() {
+          _elapsedSeconds = _selectedDuration.toDouble();
           _completed = true;
           _isRunning = false;
-          _sessionTimer?.cancel();
-        }
+        });
+        _sessionTimer?.cancel();
+        _orbController.stop(canceled: false);
+        return;
+      }
+
+      setState(() {
+        _elapsedSeconds = nextElapsed;
       });
     });
   }
@@ -921,12 +964,19 @@ class _BreatheViewState extends State<BreatheView>
     setState(() {
       _isRunning = !_isRunning;
     });
+    if (_isRunning) {
+      _orbController.repeat(reverse: true);
+      _startTimer();
+    } else {
+      _orbController.stop(canceled: false);
+      _sessionTimer?.cancel();
+    }
   }
 
   String get _phaseLabel {
     final total =
         _selectedPreset.inhale + _selectedPreset.hold + _selectedPreset.exhale + _selectedPreset.rest;
-    final cycle = _elapsed % total;
+    final cycle = (_elapsedSeconds % total).toDouble();
 
     if (cycle < _selectedPreset.inhale) return 'Inhale';
     if (cycle < _selectedPreset.inhale + _selectedPreset.hold) return 'Hold';
@@ -939,7 +989,7 @@ class _BreatheViewState extends State<BreatheView>
   double get _orbScale {
     final total =
         _selectedPreset.inhale + _selectedPreset.hold + _selectedPreset.exhale + _selectedPreset.rest;
-    final cycle = _elapsed % total;
+    final cycle = (_elapsedSeconds % total).toDouble();
 
     if (cycle < _selectedPreset.inhale) {
       final progress = cycle / _selectedPreset.inhale;
@@ -957,7 +1007,7 @@ class _BreatheViewState extends State<BreatheView>
   }
 
   String get _timeRemaining {
-    final remaining = _selectedDuration - _elapsed;
+    final remaining = (_selectedDuration - _elapsedSeconds).ceil();
     final minutes = (remaining ~/ 60).toString().padLeft(2, '0');
     final seconds = (remaining % 60).toString().padLeft(2, '0');
     return '$minutes:$seconds';
@@ -965,7 +1015,7 @@ class _BreatheViewState extends State<BreatheView>
 
   @override
   Widget build(BuildContext context) {
-    final progress = (_elapsed / _selectedDuration).clamp(0.0, 1.0);
+    final progress = (_elapsedSeconds / _selectedDuration).clamp(0.0, 1.0);
 
     return Scaffold(
       backgroundColor: ReTraceColors.background,
@@ -999,10 +1049,11 @@ class _BreatheViewState extends State<BreatheView>
                     onSelected: (_) {
                       setState(() {
                         _selectedPreset = preset;
-                        _elapsed = 0;
+                        _elapsedSeconds = 0;
                         _completed = false;
                         _isRunning = true;
                       });
+                      _orbController.repeat(reverse: true);
                       _startTimer();
                     },
                   );
@@ -1020,10 +1071,11 @@ class _BreatheViewState extends State<BreatheView>
                     onSelected: (_) {
                       setState(() {
                         _selectedDuration = seconds;
-                        _elapsed = 0;
+                        _elapsedSeconds = 0;
                         _completed = false;
                         _isRunning = true;
                       });
+                      _orbController.repeat(reverse: true);
                       _startTimer();
                     },
                   );
@@ -1066,10 +1118,11 @@ class _BreatheViewState extends State<BreatheView>
                                     child: OutlinedButton(
                                       onPressed: () {
                                         setState(() {
-                                          _elapsed = 0;
+                                          _elapsedSeconds = 0;
                                           _completed = false;
                                           _isRunning = true;
                                         });
+                                        _orbController.repeat(reverse: true);
                                         _startTimer();
                                       },
                                       child: const Text('Breathe again'),
@@ -1150,11 +1203,12 @@ class _BreatheViewState extends State<BreatheView>
                                     OutlinedButton(
                                       onPressed: () {
                                         setState(() {
-                                          _elapsed = _selectedDuration;
+                                          _elapsedSeconds = _selectedDuration.toDouble();
                                           _completed = true;
                                           _isRunning = false;
                                         });
                                         _sessionTimer?.cancel();
+                                        _orbController.stop(canceled: false);
                                       },
                                       child: const Text('End'),
                                     ),
@@ -1182,93 +1236,209 @@ class FidgetView extends StatefulWidget {
 }
 
 class _FidgetViewState extends State<FidgetView> {
-  double _sliderValue = 0.4;
+  int _bloomLevel = 0;
+  bool _completed = false;
+
+  void _bloom() {
+    setState(() {
+      _bloomLevel = (_bloomLevel + 1).clamp(0, 8);
+      _completed = _bloomLevel >= 8;
+    });
+  }
+
+  void _resetBloom() {
+    setState(() {
+      _bloomLevel = 0;
+      _completed = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: ReTraceColors.background,
-      appBar: AppBar(title: const Text('Fidget')),
+      appBar: AppBar(title: const Text('Bloom')),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(
-                'A small sensory reset.',
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
+              if (!_completed)
+                Text(
+                  'Touch the bloom and let it open.',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                  textAlign: TextAlign.center,
+                ),
+              if (_completed)
+                Text(
+                  'A little more space.',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                  textAlign: TextAlign.center,
+                ),
               const SizedBox(height: 24),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: ReTraceColors.surface,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: ReTraceColors.border),
-                ),
-                child: Column(
-                  children: [
-                    Text('Soft slider', style: Theme.of(context).textTheme.titleLarge),
-                    const SizedBox(height: 12),
-                    Slider(
-                      value: _sliderValue,
-                      onChanged: (value) => setState(() => _sliderValue = value),
-                      activeColor: ReTraceColors.primarySage,
-                    ),
-                    const SizedBox(height: 12),
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 350),
-                      width: 110 + (_sliderValue * 120),
-                      height: 54,
-                      decoration: BoxDecoration(
-                        color: ReTraceColors.softGreen,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-              Expanded(
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(18),
+              if (_completed)
+                Container(
+                  padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
                     color: ReTraceColors.surface,
                     borderRadius: BorderRadius.circular(28),
                     border: Border.all(color: ReTraceColors.border),
                   ),
-                  child: Center(
-                    child: TweenAnimationBuilder<double>(
-                      tween: Tween(begin: 0.9, end: 1.4),
-                      duration: const Duration(seconds: 2),
-                      curve: Curves.easeInOut,
-                      builder: (context, value, child) {
-                        return Transform.scale(
-                          scale: value,
-                          child: Container(
-                            width: 120,
-                            height: 120,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: RadialGradient(
-                                colors: [
-                                  ReTraceColors.primarySage.withValues(alpha: 0.8),
-                                  ReTraceColors.softLavender.withValues(alpha: 0.5),
-                                  Colors.white,
-                                ],
+                  child: Column(
+                    children: [
+                      Text(
+                        'Take another moment, or return whenever you\'re ready.',
+                        style: Theme.of(context).textTheme.bodyLarge,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 18),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: FilledButton(
+                              onPressed: _resetBloom,
+                              child: const Text('Bloom again'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              child: const Text('Done'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                )
+              else
+                GestureDetector(
+                  onTap: _bloom,
+                  child: SizedBox(
+                    width: 280,
+                    height: 280,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: List.generate(8, (index) {
+                        final angle = (index / 8) * (2 * math.pi);
+                        final scale = 0.55 + (_bloomLevel / 8) * 0.9;
+                        final offset = 36 + (_bloomLevel * 8.0);
+                        final petalSize = 80 + (_bloomLevel * 12);
+
+                        return Transform.rotate(
+                          angle: angle,
+                          child: Transform.translate(
+                            offset: Offset(
+                              (offset * math.cos(angle)) * 0.8,
+                              (offset * math.sin(angle)) * 0.8,
+                            ),
+                            child: Transform.scale(
+                              scale: scale,
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 350),
+                                curve: Curves.easeOutBack,
+                                width: petalSize.toDouble(),
+                                height: petalSize * 1.3,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(100),
+                                  gradient: RadialGradient(
+                                    colors: [
+                                      ReTraceColors.softLavender.withValues(alpha: 0.9),
+                                      ReTraceColors.primarySage.withValues(alpha: 0.75),
+                                    ],
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: ReTraceColors.softLavender.withValues(alpha: 0.25),
+                                      blurRadius: 24,
+                                      spreadRadius: 2,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
                         );
-                      },
+                      }),
                     ),
                   ),
                 ),
-              ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class QuietMomentView extends StatelessWidget {
+  const QuietMomentView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: ReTraceColors.background,
+      appBar: AppBar(title: const Text('Quiet moment')),
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(seconds: 2),
+                  width: 160,
+                  height: 160,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        ReTraceColors.softTeal.withValues(alpha: 0.8),
+                        ReTraceColors.softLavender.withValues(alpha: 0.4),
+                        Colors.white,
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'A moment for yourself.',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Nothing to do right now. Just be here for a moment.',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: ReTraceColors.secondaryText,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 28),
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const BreatheView()),
+                        ),
+                        child: const Text('Start breathing'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('Done'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
