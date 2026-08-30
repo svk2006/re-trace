@@ -42,13 +42,31 @@ class PlanItem {
   final String title;
   final String type;
   final bool complete;
+  final String period;
 
   const PlanItem({
     required this.time,
     required this.title,
     required this.type,
     required this.complete,
+    this.period = 'Day',
   });
+
+  PlanItem copyWith({
+    String? time,
+    String? title,
+    String? type,
+    bool? complete,
+    String? period,
+  }) {
+    return PlanItem(
+      time: time ?? this.time,
+      title: title ?? this.title,
+      type: type ?? this.type,
+      complete: complete ?? this.complete,
+      period: period ?? this.period,
+    );
+  }
 }
 
 class TraceMessage {
@@ -91,5 +109,86 @@ class UserProfile {
     required this.name,
     required this.recoveryState,
     required this.capacity,
+  });
+}
+
+class DailyCheckInResult {
+  final int mood;
+  final int energy;
+  final int fatigue;
+  final int focus;
+  final int mentalLoad;
+  final int discomfort;
+  final List<String> symptoms;
+
+  const DailyCheckInResult({
+    this.mood = 3,
+    this.energy = 6,
+    this.fatigue = 3,
+    this.focus = 5,
+    this.mentalLoad = 5,
+    this.discomfort = 3,
+    this.symptoms = const [],
+  });
+}
+
+class RecoveryEvent {
+  final String id;
+  final String title;
+  final String kind;
+  final int dayIndex;
+
+  const RecoveryEvent({
+    required this.id,
+    required this.title,
+    required this.kind,
+    required this.dayIndex,
+  });
+}
+
+class RhythmDay {
+  final String label;
+  final String dateLabel;
+  final double energy;
+  final double mood;
+  final double fatigue;
+  final double stress;
+  final List<RecoveryEvent> events;
+  final String note;
+
+  const RhythmDay({
+    required this.label,
+    required this.dateLabel,
+    required this.energy,
+    required this.mood,
+    required this.fatigue,
+    required this.stress,
+    this.events = const [],
+    this.note = '',
+  });
+
+  double metric(String dimension) {
+    return switch (dimension) {
+      'Mood' => mood,
+      'Fatigue' => fatigue,
+      'Stress' => stress,
+      _ => energy,
+    };
+  }
+}
+
+class SymptomNode {
+  final String label;
+  final int severity;
+  final double x;
+  final double y;
+  final String history;
+
+  const SymptomNode({
+    required this.label,
+    required this.severity,
+    required this.x,
+    required this.y,
+    required this.history,
   });
 }
