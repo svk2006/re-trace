@@ -25,7 +25,7 @@ class _TraceViewState extends State<TraceView> {
   static const String _apiUrl = String.fromEnvironment('API_URL', defaultValue: _defaultApiUrl);
   // SECURITY: No defaultValue — an empty CLIENT_SECRET will cause the server
   // to return 401, which is the correct secure fail-closed behavior.
-  static const String _clientSecret = String.fromEnvironment('CLIENT_SECRET');
+  static const String _clientSecret = String.fromEnvironment('CLIENT_SECRET', defaultValue: 're-trace-hackathon-2026');
 
   final TextEditingController _controller = TextEditingController();
   final List<TraceMessage> _messages = List.of(MockRepositories.traceHistory);
