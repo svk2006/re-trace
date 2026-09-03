@@ -157,14 +157,14 @@ class PlanView extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: selectedPeriod,
+                      initialValue: selectedPeriod,
                       decoration: const InputDecoration(labelText: 'Time of Day'),
                       items: ['Morning', 'Afternoon', 'Evening'].map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
                       onChanged: (v) => setState(() => selectedPeriod = v ?? 'Morning'),
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: selectedType,
+                      initialValue: selectedType,
                       decoration: const InputDecoration(labelText: 'Category'),
                       items: ['Routine', 'Recovery', 'Rest', 'Focus'].map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
                       onChanged: (v) => setState(() => selectedType = v ?? 'Routine'),

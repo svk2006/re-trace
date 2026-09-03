@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:re_trace/services/notification_service.dart';
 import 'package:re_trace/state/app_session.dart';
 import 'package:re_trace/theme/re_trace_palette.dart';
 import 'package:re_trace/widgets/atmosphere.dart';

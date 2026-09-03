@@ -76,10 +76,10 @@ class NotificationService {
     const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
 
     await _notifications.show(
-      999,
-      title ?? 'RE:TRACE Active',
-      body ?? 'Your daily check-in reminder is configured and working.',
-      details,
+      id: 999,
+      title: title ?? 'RE:TRACE Active',
+      body: body ?? 'Your daily check-in reminder is configured and working.',
+      notificationDetails: details,
     );
   }
 
