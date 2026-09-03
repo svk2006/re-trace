@@ -135,8 +135,13 @@ const verifyClientAuth = (req: Request, res: Response, next: NextFunction) => {
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
 // Health check (public — intentionally unauthenticated for uptime monitoring)
-app.get('/health', (_req: Request, res: Response) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get(['/health', '/api/v1/health', '/'], (_req: Request, res: Response) => {
+  res.status(200).json({
+    status: 'ok',
+    service: 're-trace-api',
+    gemini_configured: !!process.env.GEMINI_API_KEY,
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // Check-in endpoints — now authenticated (H-01 fix)

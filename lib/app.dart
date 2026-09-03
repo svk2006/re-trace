@@ -43,7 +43,7 @@ class _ReTraceAppState extends State<ReTraceApp> {
     return AppSession(
       notifier: _session,
       child: MaterialApp(
-        title: 'RE:TRACE',
+        title: 're-trace',
         debugShowCheckedModeBanner: false,
         theme: ReTraceTheme.build(dark: false),
         darkTheme: ReTraceTheme.build(dark: true),
