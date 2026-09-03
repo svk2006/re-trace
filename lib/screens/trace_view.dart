@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 import 'package:flutter/material.dart';
 import 'package:re_trace/data/mock_repositories.dart';
-import 'package:re_trace/models/re_trace_models.dart';
+import 'package:app_core/app_core.dart';
 import 'package:re_trace/state/app_session.dart';
 import 'package:re_trace/theme/re_trace_palette.dart';
 import 'package:re_trace/widgets/atmosphere.dart';
@@ -15,6 +17,10 @@ class TraceView extends StatefulWidget {
 }
 
 class _TraceViewState extends State<TraceView> {
+  static const String _defaultApiUrl = 'https://re-trace-be2.vercel.app/api/v1/trace/chat';
+  static const String _apiUrl = String.fromEnvironment('API_URL', defaultValue: _defaultApiUrl);
+  static const String _clientSecret = String.fromEnvironment('CLIENT_SECRET', defaultValue: 're-trace-hackathon-2026');
+
   final TextEditingController _controller = TextEditingController();
   final List<TraceMessage> _messages = List.of(MockRepositories.traceHistory);
   bool _thinking = false;
@@ -27,7 +33,7 @@ class _TraceViewState extends State<TraceView> {
     super.dispose();
   }
 
-  void _send(String text) {
+  Future<void> _send(String text) async {
     if (text.trim().isEmpty) return;
     final session = AppSession.of(context);
     session.tapFeedback();
@@ -36,18 +42,38 @@ class _TraceViewState extends State<TraceView> {
       _thinking = true;
       _controller.clear();
     });
-    _thinkTimer?.cancel();
-    _thinkTimer = Timer(const Duration(milliseconds: 900), () {
+    
+    try {
+      final response = await http.post(
+        Uri.parse(_apiUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Client-Secret': _clientSecret,
+        },
+        body: jsonEncode({'message': text.trim()}),
+      );
+      
       if (!mounted) return;
-      final checkIn = session.checkIn;
-      final reply = checkIn != null && checkIn.energy <= 4
-          ? 'Your check-in showed lower energy. I can keep the afternoon gentler, or we can look at what changed.'
-          : 'That tracks with your recent pattern. A gentler afternoon may help, or we can simply keep today as it is.';
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() {
+          _thinking = false;
+          _messages.add(TraceMessage(text: data['response'] ?? '...', fromUser: false));
+        });
+      } else {
+        setState(() {
+          _thinking = false;
+          _messages.add(TraceMessage(text: 'TRACE is offline or busy right now.', fromUser: false));
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
       setState(() {
         _thinking = false;
-        _messages.add(TraceMessage(text: reply, fromUser: false));
+        _messages.add(TraceMessage(text: 'Network error connecting to TRACE.', fromUser: false));
       });
-    });
+    }
   }
 
   @override

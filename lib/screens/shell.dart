@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:re_trace/models/re_trace_models.dart';
+import 'package:app_core/app_core.dart';
 import 'package:re_trace/screens/check_in_screen.dart';
 import 'package:re_trace/screens/home_view.dart';
 import 'package:re_trace/screens/insights_view.dart';

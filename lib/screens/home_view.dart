@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:re_trace/data/mock_repositories.dart';
-import 'package:re_trace/models/intelligence_models.dart';
+import 'package:app_core/app_core.dart';
 import 'package:re_trace/screens/reset_view.dart';
 import 'package:re_trace/state/app_session.dart';
 import 'package:re_trace/theme/motion.dart';

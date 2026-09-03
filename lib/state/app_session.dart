@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:re_trace/data/mock_repositories.dart';
-import 'package:re_trace/models/intelligence_models.dart';
-import 'package:re_trace/models/re_trace_models.dart';
-import 'package:re_trace/services/recovery_intelligence.dart';
+import 'package:app_core/app_core.dart';
 
 class AppSession extends InheritedNotifier<AppSessionController> {
   const AppSession({

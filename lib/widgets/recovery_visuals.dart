@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:re_trace/models/re_trace_models.dart';
+import 'package:app_core/app_core.dart';
 import 'package:re_trace/theme/motion.dart';
 import 'package:re_trace/theme/re_trace_palette.dart';
 

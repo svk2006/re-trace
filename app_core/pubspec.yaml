@@ -1,0 +1,8 @@
+name: app_core
+description: Shared models and services for RE:TRACE
+version: 1.0.0
+
+environment:
+  sdk: ^3.13.2
+
+dependencies:

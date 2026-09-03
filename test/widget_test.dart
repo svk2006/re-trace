@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:re_trace/main.dart';
 import 'package:re_trace/screens/reset_view.dart';
-import 'package:re_trace/services/recovery_intelligence.dart';
+import 'package:app_core/app_core.dart';
 
 void main() {
   testWidgets('RE:TRACE app loads with splash and onboarding copy', (tester) async {

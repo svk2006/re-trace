@@ -1,4 +1,4 @@
-﻿import 'package:re_trace/models/re_trace_models.dart';
+﻿import 'package:app_core/app_core.dart';
 import 'package:re_trace/repositories/re_trace_repository.dart';
 
 class MockRepositories extends ReTraceRepository {
