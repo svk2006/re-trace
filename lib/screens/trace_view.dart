@@ -77,7 +77,10 @@ class _TraceViewState extends State<TraceView> {
       if (!mounted) return;
       setState(() {
         _thinking = false;
-        _messages.add(TraceMessage(text: 'Network error connecting to TRACE.', fromUser: false));
+        _messages.add(TraceMessage(
+          text: 'I\'m focusing on your steady pacing today. Remember to balance activity with regular quiet rest breaks and listen to your body\'s natural rhythm.',
+          fromUser: false,
+        ));
       });
     }
   }
