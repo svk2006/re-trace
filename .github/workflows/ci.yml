@@ -13,12 +13,12 @@ concurrency:
 
 jobs:
   # ==========================================
-  # Job 1: Flutter App — Analyze & Test
+  # Job 1: Flutter App — Analyze, Test & Build APK
   # ==========================================
   flutter-ci:
-    name: Flutter App (Analyze & Test)
+    name: Flutter App (Analyze, Test & Build APK)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout Code
@@ -44,6 +44,15 @@ jobs:
 
       - name: Run Flutter Tests
         run: flutter test --coverage
+
+      - name: Build Android Release APK
+        run: flutter build apk --release --no-tree-shake-icons
+
+      - name: Upload APK Zip Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: re-trace-app-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
 
   # ==========================================
   # Job 2: Backend API — Dependency Audit, Typecheck & Tests
