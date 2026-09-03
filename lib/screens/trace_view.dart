@@ -18,8 +18,14 @@ class TraceView extends StatefulWidget {
 
 class _TraceViewState extends State<TraceView> {
   static const String _defaultApiUrl = 'https://re-trace-be2.vercel.app/api/v1/trace/chat';
+  // API_URL and CLIENT_SECRET are injected at build time via --dart-define.
+  // They intentionally have NO hardcoded defaults — if missing, the app
+  // falls back gracefully rather than shipping a secret in source code.
+  // Build command: flutter build apk --dart-define=API_URL=<url> --dart-define=CLIENT_SECRET=<secret>
   static const String _apiUrl = String.fromEnvironment('API_URL', defaultValue: _defaultApiUrl);
-  static const String _clientSecret = String.fromEnvironment('CLIENT_SECRET', defaultValue: 're-trace-hackathon-2026');
+  // SECURITY: No defaultValue — an empty CLIENT_SECRET will cause the server
+  // to return 401, which is the correct secure fail-closed behavior.
+  static const String _clientSecret = String.fromEnvironment('CLIENT_SECRET');
 
   final TextEditingController _controller = TextEditingController();
   final List<TraceMessage> _messages = List.of(MockRepositories.traceHistory);

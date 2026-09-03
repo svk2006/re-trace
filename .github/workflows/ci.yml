@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   # ==========================================
-  # Job 1: Flutter App Testing & Static Analysis
+  # Job 1: Flutter App — Analyze & Test
   # ==========================================
   flutter-ci:
     name: Flutter App (Analyze & Test)
@@ -22,35 +22,39 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        # Pinned to v4.2.2 (SHA: 11bd71901bbe5b1630ceea73d27597364c9af683)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
-      - name: Setup Java (for Android toolchain compatibility)
-        uses: actions/setup-java@v4
+      - name: Setup Java (Android toolchain compatibility)
+        # Pinned to v4.5.0 (SHA: 3a6f49d8e914b3c2df0a45a34a3c0e09b25cad6f)
+        uses: actions/setup-java@3a6f49d8e914b3c2df0a45a34a3c0e09b25cad6f
         with:
           distribution: 'temurin'
           java-version: '17'
 
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+        # Pinned to v2.16.0 (SHA: 44b7e2e3f43e62789e773b6e5e4f5b39ac35f8e8)
+        uses: subosito/flutter-action@44b7e2e3f43e62789e773b6e5e4f5b39ac35f8e8
         with:
           channel: 'stable'
           cache: true
-          cache-key: "flutter-:os:-:channel:-:version:-:arch:-:hash:"
 
-      - name: Install Root Dependencies
+      - name: Install Flutter Dependencies
         run: flutter pub get
 
-      - name: Analyze Flutter Code
+      - name: Analyze Flutter Code (no fatal infos)
         run: flutter analyze --no-fatal-infos
 
       - name: Run Flutter Tests
+        # CLIENT_SECRET intentionally empty for unit/widget tests — they do not
+        # make real network calls, so the empty string is correct and safe here.
         run: flutter test --coverage
 
   # ==========================================
-  # Job 2: Backend API Testing & Typecheck
+  # Job 2: Backend API — Dependency Audit, Typecheck & Tests
   # ==========================================
   backend-api-ci:
-    name: Backend API (Typecheck & Automated Tests)
+    name: Backend API (Audit, Typecheck & Tests)
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -60,10 +64,12 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        # Pinned to v4.2.2 (SHA: 11bd71901bbe5b1630ceea73d27597364c9af683)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        # Pinned to v4.1.0 (SHA: 39370e3970a6d050c480ffad4ff0ed4d3fdee5af)
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
           node-version: 20
           cache: 'npm'
@@ -72,8 +78,15 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      # I-01 fix: Fail the build on any HIGH or CRITICAL dependency vulnerability
+      - name: Audit Dependencies for Known Vulnerabilities
+        run: npm audit --audit-level=high
+        continue-on-error: false
+
       - name: Verify TypeScript Compilation
         run: npx tsc --noEmit
 
       - name: Run Backend API Test Suite
+        # CLIENT_SECRET is set inside the test file itself to a known test-only value.
+        # The production secret is NEVER passed to CI — it lives only in Vercel env vars.
         run: npm test
