@@ -43,8 +43,13 @@ class _TraceViewState extends State<TraceView> {
     if (text.trim().isEmpty) return;
     final session = AppSession.of(context);
     session.tapFeedback();
+    
+    final userMessage = TraceMessage(text: text.trim(), fromUser: true);
+    final contextString = session.getChatTranscriptContext();
+    session.addChatMessage(userMessage);
+
     setState(() {
-      _messages.add(TraceMessage(text: text.trim(), fromUser: true));
+      _messages.add(userMessage);
       _thinking = true;
       _controller.clear();
     });
@@ -56,16 +61,21 @@ class _TraceViewState extends State<TraceView> {
           'Content-Type': 'application/json',
           'X-Client-Secret': _clientSecret,
         },
-        body: jsonEncode({'message': text.trim()}),
+        body: jsonEncode({
+          'message': text.trim(),
+          'context': contextString,
+        }),
       );
       
       if (!mounted) return;
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        final aiMessage = TraceMessage(text: data['response'] ?? '...', fromUser: false);
+        session.addChatMessage(aiMessage);
         setState(() {
           _thinking = false;
-          _messages.add(TraceMessage(text: data['response'] ?? '...', fromUser: false));
+          _messages.add(aiMessage);
         });
       } else {
         setState(() {

@@ -4,9 +4,16 @@ import 'package:re_trace/main.dart';
 import 'package:re_trace/screens/reset_view.dart';
 import 'package:app_core/app_core.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
   testWidgets('RE:TRACE app loads with splash and onboarding copy', (tester) async {
-    await tester.pumpWidget(const ReTraceApp());
+    final prefs = await SharedPreferences.getInstance();
+    await tester.pumpWidget(ReTraceApp(prefs: prefs));
 
     expect(find.text('RE:TRACE'), findsOneWidget);
     expect(find.text('Preparing your recovery space...'), findsOneWidget);

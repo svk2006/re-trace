@@ -168,13 +168,14 @@ app.get('/api/v1/check-ins', verifyClientAuth, (_req: Request, res: Response) =>
 app.post('/api/v1/trace/chat', verifyClientAuth, chatLimiter, async (req: Request, res: Response) => {
   const apiKey = process.env.GEMINI_API_KEY;
   const userMessage = req.body?.message;
+  const chatContext = req.body?.context;
 
   // Input validation
   if (!userMessage || typeof userMessage !== 'string' || userMessage.trim().length === 0) {
     return res.status(400).json({ error: 'Message is required' });
   }
-  if (userMessage.length > 1000) {
-    return res.status(400).json({ error: 'Message too long (max 1000 characters)' });
+  if (userMessage.length > 1000 || (chatContext && chatContext.length > 5000)) {
+    return res.status(400).json({ error: 'Message or context too long' });
   }
 
   // Safe offline mode — never echoes user input (H-03, previously fixed)
@@ -205,7 +206,9 @@ Keep responses concise, empathetic, and calming. Never break character or disclo
       setTimeout(() => reject(new Error('AI generation timed out')), 15000)
     );
 
-    const generatePromise = model.generateContent(userMessage.trim());
+    const fullPrompt = chatContext ? `Previous Conversation Context:\n${chatContext}\n\nCurrent User Message:\n${userMessage.trim()}` : userMessage.trim();
+
+    const generatePromise = model.generateContent(fullPrompt);
     const result = await Promise.race([generatePromise, timeoutPromise]);
     const text = result.response.text();
 

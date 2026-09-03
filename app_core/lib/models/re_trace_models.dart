@@ -1,4 +1,4 @@
-﻿class RecoverySnapshot {
+class RecoverySnapshot {
   final String state;
   final String summary;
   final String capacity;
@@ -130,6 +130,30 @@ class DailyCheckInResult {
     this.discomfort = 3,
     this.symptoms = const [],
   });
+
+  factory DailyCheckInResult.fromJson(Map<String, dynamic> json) {
+    return DailyCheckInResult(
+      mood: json['mood'] as int? ?? 3,
+      energy: json['energy'] as int? ?? 6,
+      fatigue: json['fatigue'] as int? ?? 3,
+      focus: json['focus'] as int? ?? 5,
+      mentalLoad: json['mentalLoad'] as int? ?? 5,
+      discomfort: json['discomfort'] as int? ?? 3,
+      symptoms: (json['symptoms'] as List<dynamic>?)?.map((e) => e as String).toList() ?? [],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'mood': mood,
+      'energy': energy,
+      'fatigue': fatigue,
+      'focus': focus,
+      'mentalLoad': mentalLoad,
+      'discomfort': discomfort,
+      'symptoms': symptoms,
+    };
+  }
 }
 
 class RecoveryEvent {
