@@ -59,8 +59,11 @@ class _ReTraceAppState extends State<ReTraceApp> {
               )
             : _showOnboarding
                 ? OnboardingScreen(
-                    onGetStarted: () {
+                    onGetStarted: (name) {
                       if (!mounted) return;
+                      if (name.isNotEmpty) {
+                        _session.setUserName(name);
+                      }
                       _session.completeOnboarding();
                       setState(() => _showOnboarding = false);
                     },

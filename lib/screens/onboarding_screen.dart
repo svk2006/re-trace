@@ -6,7 +6,7 @@ import 'package:re_trace/widgets/atmosphere.dart';
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key, required this.onGetStarted});
 
-  final VoidCallback onGetStarted;
+  final void Function(String name) onGetStarted;
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -26,6 +26,7 @@ class _OnboardingPage {
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
+  final TextEditingController _nameController = TextEditingController();
   int _page = 0;
 
   static const _pages = [
@@ -49,11 +50,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       body: 'A calm companion that notices patterns and suggests gentler next steps. It does not diagnose.',
       asset: 'assets/atmosphere/breathe.png',
     ),
+    _OnboardingPage(
+      title: 'What should we call you?',
+      body: 'RE:TRACE is your personal, judgment-free space to pace and recover.',
+      asset: 'assets/atmosphere/sunset_lake.png',
+    ),
   ];
 
   @override
   void dispose() {
     _pageController.dispose();
+    _nameController.dispose();
     super.dispose();
   }
 
@@ -62,7 +69,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       _pageController.nextPage(duration: ReTraceMotion.medium, curve: ReTraceMotion.spatial);
       return;
     }
-    widget.onGetStarted();
+    widget.onGetStarted(_nameController.text.trim());
   }
 
   @override
@@ -103,7 +110,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
-                      onPressed: widget.onGetStarted,
+                      onPressed: () => widget.onGetStarted(_nameController.text.trim()),
                       child: Text('Skip', style: TextStyle(color: Colors.white.withValues(alpha: 0.86))),
                     ),
                   ),
@@ -114,9 +121,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       onPageChanged: (value) => setState(() => _page = value),
                       itemBuilder: (context, index) {
                         final item = _pages[index];
+                        final isNamePage = index == _pages.length - 1;
                         return Align(
                           alignment: Alignment.bottomLeft,
-                          child: Padding(
+                          child: SingleChildScrollView(
                             padding: const EdgeInsets.only(bottom: 24),
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
@@ -137,6 +145,26 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                         fontSize: 17,
                                       ),
                                 ),
+                                if (isNamePage) ...[
+                                  const SizedBox(height: 20),
+                                  TextField(
+                                    controller: _nameController,
+                                    textCapitalization: TextCapitalization.words,
+                                    style: const TextStyle(color: Colors.white, fontSize: 18),
+                                    decoration: InputDecoration(
+                                      hintText: 'Enter your name (e.g. Alex)',
+                                      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+                                      filled: true,
+                                      fillColor: Colors.white.withValues(alpha: 0.15),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                        borderSide: BorderSide.none,
+                                      ),
+                                      prefixIcon: const Icon(Icons.person_outline, color: Colors.white70),
+                                    ),
+                                    onSubmitted: (_) => _nextPage(),
+                                  ),
+                                ],
                               ],
                             ),
                           ),

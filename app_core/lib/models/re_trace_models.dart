@@ -67,6 +67,26 @@ class PlanItem {
       period: period ?? this.period,
     );
   }
+
+  factory PlanItem.fromJson(Map<String, dynamic> json) {
+    return PlanItem(
+      time: json['time'] as String? ?? '9:00 AM',
+      title: json['title'] as String? ?? '',
+      type: json['type'] as String? ?? 'Routine',
+      complete: json['complete'] as bool? ?? false,
+      period: json['period'] as String? ?? 'Morning',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'time': time,
+      'title': title,
+      'type': type,
+      'complete': complete,
+      'period': period,
+    };
+  }
 }
 
 class TraceMessage {

@@ -33,6 +33,7 @@ class AppSessionController extends ChangeNotifier {
   final RecoveryIntelligenceService intelligence = RecoveryIntelligenceService();
 
   ThemeMode themeMode = ThemeMode.system;
+  String _userName = 'Friend';
   bool _reducedMotion = false;
   bool _lowStimulation = false;
   bool _haptics = true;
@@ -43,6 +44,7 @@ class AppSessionController extends ChangeNotifier {
   bool _planSoftened = false;
   List<TraceMessage> _chatHistory = [];
 
+  String get userName => prefs.getString('userName') ?? _userName;
   bool get reducedMotion => _reducedMotion;
   bool get lowStimulation => _lowStimulation;
   bool get haptics => _haptics;
@@ -60,7 +62,17 @@ class AppSessionController extends ChangeNotifier {
     prefs.setBool('hasSeenOnboarding', true);
   }
 
+  void setUserName(String name) {
+    _userName = name.trim().isEmpty ? 'Friend' : name.trim();
+    prefs.setString('userName', _userName);
+    notifyListeners();
+  }
+
   void _loadState() {
+    final storedName = prefs.getString('userName');
+    if (storedName != null && storedName.isNotEmpty) {
+      _userName = storedName;
+    }
     final themeIndex = prefs.getInt('themeMode');
     if (themeIndex != null) themeMode = ThemeMode.values[themeIndex];
     _reducedMotion = prefs.getBool('reducedMotion') ?? false;
@@ -81,6 +93,15 @@ class AppSessionController extends ChangeNotifier {
         _checkIn = DailyCheckInResult.fromJson(jsonDecode(checkInJson));
       } catch (e) {
         // Ignore
+      }
+    }
+
+    final storedPlan = prefs.getStringList('dailyPlan');
+    if (storedPlan != null && storedPlan.isNotEmpty) {
+      try {
+        _planItems = storedPlan.map((e) => PlanItem.fromJson(jsonDecode(e))).toList();
+      } catch (e) {
+        // Fallback
       }
     }
     
@@ -237,8 +258,34 @@ class AppSessionController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void _savePlan() {
+    prefs.setStringList('dailyPlan', _planItems.map((e) => jsonEncode(e.toJson())).toList());
+  }
+
   void updatePlan(List<PlanItem> next) {
     _planItems = next;
+    _savePlan();
+    notifyListeners();
+  }
+
+  void addPlanItem(PlanItem item) {
+    _planItems.add(item);
+    _savePlan();
+    notifyListeners();
+  }
+
+  void removePlanItem(int index) {
+    if (index >= 0 && index < _planItems.length) {
+      _planItems.removeAt(index);
+      _savePlan();
+      notifyListeners();
+    }
+  }
+
+  void resetDailyPlan() {
+    _planItems = List.of(MockRepositories.todaysPlan);
+    _planSoftened = false;
+    _savePlan();
     notifyListeners();
   }
 
@@ -253,11 +300,13 @@ class AppSessionController extends ChangeNotifier {
       }
       return item;
     }).toList();
+    _savePlan();
     notifyListeners();
   }
 
   void keepPlan() {
     _planSoftened = false;
+    _savePlan();
     notifyListeners();
   }
 }

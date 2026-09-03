@@ -53,6 +53,40 @@ class SettingsView extends StatelessWidget {
                 onChanged: session.setHaptics,
               ),
               const SizedBox(height: 12),
+              Text('Profile & Name', style: Theme.of(context).textTheme.titleLarge),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Your name'),
+                subtitle: Text(session.userName),
+                trailing: const Icon(Icons.edit_outlined, size: 20),
+                onTap: () {
+                  final controller = TextEditingController(text: session.userName);
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('Change Name'),
+                      content: TextField(
+                        controller: controller,
+                        autofocus: true,
+                        decoration: const InputDecoration(labelText: 'Name'),
+                      ),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+                        FilledButton(
+                          onPressed: () {
+                            if (controller.text.trim().isNotEmpty) {
+                              session.setUserName(controller.text.trim());
+                            }
+                            Navigator.of(ctx).pop();
+                          },
+                          child: const Text('Save'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
               Text('Recovery', style: Theme.of(context).textTheme.titleLarge),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
@@ -69,17 +103,34 @@ class SettingsView extends StatelessWidget {
                   if (next != null) session.setReminderTime(next);
                 },
               ),
-              const SizedBox(height: 12),
-              Text('Data', style: Theme.of(context).textTheme.titleLarge),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Recovery data'),
-                subtitle: const Text('Mock-only in this prototype. No cloud export yet.'),
+                title: const Text('Test reminder notification'),
+                subtitle: const Text('Send an instant test alert to verify delivery.'),
+                trailing: const Icon(Icons.notifications_active_outlined, size: 20),
+                onTap: () async {
+                  await NotificationService().showInstantNotification(
+                    title: 'RE:TRACE Daily Check-in',
+                    body: 'How are your energy and symptoms feeling today?',
+                  );
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Test notification sent! Check your notification bar.')),
+                    );
+                  }
+                },
               ),
-              ListTile(
+              const SizedBox(height: 12),
+              Text('Data & Privacy', style: Theme.of(context).textTheme.titleLarge),
+              const ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Privacy'),
-                subtitle: const Text('Check-ins stay on this device in the current mock architecture.'),
+                title: Text('Local storage'),
+                subtitle: Text('All check-ins, history, and settings are saved privately on this device.'),
+              ),
+              const ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('Privacy-first AI'),
+                subtitle: Text('TRACE chats use secure, ephemeral memory. No diagnostic logs leave your control.'),
               ),
               const SizedBox(height: 12),
               Text('About', style: Theme.of(context).textTheme.titleLarge),

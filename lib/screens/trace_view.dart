@@ -120,88 +120,88 @@ class _TraceViewState extends State<TraceView> {
               ),
               const SizedBox(height: 12),
               Expanded(
-                child: ListView(
-                  children: [
-                    ..._messages.map((message) {
+                child: ListView.builder(
+                  padding: const EdgeInsets.only(top: 8, bottom: 12),
+                  itemCount: _messages.length + (_thinking ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    if (index == _messages.length) {
                       return Align(
-                        alignment: message.fromUser ? Alignment.centerRight : Alignment.centerLeft,
+                        alignment: Alignment.centerLeft,
                         child: Container(
                           margin: const EdgeInsets.only(bottom: 12),
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          constraints: const BoxConstraints(maxWidth: 300),
                           decoration: BoxDecoration(
-                            color: message.fromUser ? palette.accent : palette.surfaceGlass,
+                            color: palette.surfaceGlass,
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: Text(
-                            message.text,
-                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                  color: message.fromUser ? palette.onAccent : palette.textPrimary,
-                                ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: palette.accent),
+                              ),
+                              const SizedBox(width: 10),
+                              Text('TRACE is sitting with that...', style: Theme.of(context).textTheme.bodyMedium),
+                            ],
                           ),
                         ),
                       );
-                    }),
-                    if (_thinking)
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: Text('TRACE is sitting with that...', style: Theme.of(context).textTheme.bodyMedium),
+                    }
+
+                    final message = _messages[index];
+                    return Align(
+                      alignment: message.fromUser ? Alignment.centerRight : Alignment.centerLeft,
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        constraints: const BoxConstraints(maxWidth: 300),
+                        decoration: BoxDecoration(
+                          color: message.fromUser ? palette.accent : palette.surfaceGlass,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          message.text,
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                color: message.fromUser ? palette.onAccent : palette.textPrimary,
+                              ),
                         ),
                       ),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: GlassPanel(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              session.checkIn == null
-                                  ? 'Your fatigue is a little higher than your recent baseline, and yesterday was a higher-load day.'
-                                  : 'Today\'s check-in is now part of this conversation.',
-                              style: Theme.of(context).textTheme.bodyLarge,
-                            ),
-                            const SizedBox(height: 12),
-                            GradientCta(
-                              label: 'Make afternoon gentler',
-                              onPressed: session.applyGentlePlan,
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: OutlinedButton(
-                                    onPressed: () {},
-                                    child: const Text('Why?'),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: OutlinedButton(
-                                    onPressed: session.keepPlan,
-                                    child: const Text('Keep my plan'),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+                    );
+                  },
                 ),
               ),
-              Wrap(
-                spacing: 8,
-                children: [
-                  ActionChip(label: const Text('Why am I tired today?'), onPressed: () => _send('Why am I tired today?')),
-                  ActionChip(label: const Text('What changed?'), onPressed: () => _send('What changed?')),
-                  ActionChip(label: const Text('Plan my day.'), onPressed: () => _send('Plan my day.')),
-                ],
+              GestureDetector(
+                onVerticalDragEnd: (details) {
+                  if (details.primaryVelocity != null && details.primaryVelocity! < -100) {
+                    _showPacingMenu(context, session, palette);
+                  }
+                },
+                onTap: () => _showPacingMenu(context, session, palette),
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: palette.surfaceGlass,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: palette.border.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.keyboard_arrow_up_rounded, size: 20, color: palette.accent),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Swipe up for pacing options & prompts',
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(color: palette.textSecondary, fontSize: 13),
+                      ),
+                      const SizedBox(width: 6),
+                      Icon(Icons.auto_awesome, size: 16, color: palette.accent),
+                    ],
+                  ),
+                ),
               ),
-              const SizedBox(height: 10),
               Row(
                 children: [
                   Expanded(
@@ -213,9 +213,10 @@ class _TraceViewState extends State<TraceView> {
                         filled: true,
                         fillColor: palette.surface,
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(18),
+                          borderRadius: BorderRadius.circular(20),
                           borderSide: BorderSide.none,
                         ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                       ),
                     ),
                   ),
@@ -223,6 +224,7 @@ class _TraceViewState extends State<TraceView> {
                   Pressable(
                     onTap: () => _send(_controller.text),
                     child: CircleAvatar(
+                      radius: 24,
                       backgroundColor: palette.accent,
                       child: Icon(Icons.arrow_upward_rounded, color: palette.onAccent),
                     ),
@@ -233,6 +235,154 @@ class _TraceViewState extends State<TraceView> {
           ),
         ),
       ),
+    );
+  }
+
+  void _showPacingMenu(BuildContext context, AppSessionController session, dynamic palette) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return Container(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+          decoration: BoxDecoration(
+            color: palette.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 20,
+                offset: const Offset(0, -4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: palette.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Pacing & Quick Options', style: Theme.of(context).textTheme.titleLarge),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              GlassPanel(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      session.checkIn == null
+                          ? 'Your fatigue is slightly higher than baseline. A gentler schedule may help.'
+                          : 'Today\'s check-in: Energy ${session.checkIn!.energy}/10 · Fatigue ${session.checkIn!.fatigue}/10.',
+                      style: Theme.of(context).textTheme.bodyLarge,
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GradientCta(
+                            label: 'Make afternoon gentler',
+                            onPressed: () {
+                              session.applyGentlePlan();
+                              Navigator.of(ctx).pop();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Plan softened for a gentler afternoon.')),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () {
+                              Navigator.of(ctx).pop();
+                              _send('Why is a gentler afternoon recommended today?');
+                            },
+                            child: const Text('Why?'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () {
+                              session.keepPlan();
+                              Navigator.of(ctx).pop();
+                            },
+                            child: const Text('Keep my plan'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text('Quick Prompts', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ActionChip(
+                    avatar: const Icon(Icons.psychology_outlined, size: 16),
+                    label: const Text('Why am I tired today?'),
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      _send('Why am I tired today?');
+                    },
+                  ),
+                  ActionChip(
+                    avatar: const Icon(Icons.timeline, size: 16),
+                    label: const Text('What changed in my rhythm?'),
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      _send('What changed in my rhythm?');
+                    },
+                  ),
+                  ActionChip(
+                    avatar: const Icon(Icons.calendar_today_outlined, size: 16),
+                    label: const Text('Plan my day around my capacity'),
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      _send('Help me plan my day around my current recovery capacity.');
+                    },
+                  ),
+                  ActionChip(
+                    avatar: const Icon(Icons.air, size: 16),
+                    label: const Text('Suggest a quick pacing reset'),
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      _send('Suggest a quick 2-minute pacing reset exercise.');
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

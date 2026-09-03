@@ -48,7 +48,7 @@ class HomeView extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    '$greeting, ${MockRepositories.user.name}.',
+                    '$greeting, ${session.userName}.',
                     style: Theme.of(context).textTheme.headlineMedium,
                   ),
                 ),
