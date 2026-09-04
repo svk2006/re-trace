@@ -7,7 +7,9 @@ import 'package:re_trace/widgets/atmosphere.dart';
 import 'package:re_trace/widgets/check_in_controls.dart';
 
 class DailyCheckInScreen extends StatefulWidget {
-  const DailyCheckInScreen({super.key});
+  const DailyCheckInScreen({super.key, this.onComplete});
+
+  final ValueChanged<DailyCheckInResult?>? onComplete;
 
   @override
   State<DailyCheckInScreen> createState() => _DailyCheckInScreenState();
@@ -38,7 +40,7 @@ class _DailyCheckInScreenState extends State<DailyCheckInScreen> {
   ];
 
   static const _questions = [
-    'How are you feeling?',
+    'How are you feeling right now?',
     'How is your energy right now?',
     'How heavy does fatigue feel?',
     'How is your focus?',
@@ -79,6 +81,10 @@ class _DailyCheckInScreenState extends State<DailyCheckInScreen> {
       return;
     }
     if (_step == 0) {
+      if (widget.onComplete != null) {
+        widget.onComplete!(null);
+        return;
+      }
       Navigator.of(context).pop();
       return;
     }
@@ -285,7 +291,13 @@ class _DailyCheckInScreenState extends State<DailyCheckInScreen> {
         const Spacer(),
         GradientCta(
           label: 'See my recovery',
-          onPressed: () => Navigator.of(context).pop(result),
+          onPressed: () {
+            if (widget.onComplete != null) {
+              widget.onComplete!(result);
+              return;
+            }
+            Navigator.of(context).pop(result);
+          },
         ),
       ],
     );

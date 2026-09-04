@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:re_trace/screens/check_in_screen.dart';
 import 'package:re_trace/screens/onboarding_screen.dart';
 import 'package:re_trace/screens/shell.dart';
 import 'package:re_trace/screens/splash_screen.dart';
@@ -18,6 +19,7 @@ class _ReTraceAppState extends State<ReTraceApp> {
   late final AppSessionController _session;
   bool _showSplash = true;
   late bool _showOnboarding;
+  bool _showInitialCheckIn = false;
 
   @override
   void initState() {
@@ -43,7 +45,7 @@ class _ReTraceAppState extends State<ReTraceApp> {
     return AppSession(
       notifier: _session,
       child: MaterialApp(
-        title: 're-trace',
+        title: 'ReTrace',
         debugShowCheckedModeBanner: false,
         theme: ReTraceTheme.build(dark: false),
         darkTheme: ReTraceTheme.build(dark: true),
@@ -65,10 +67,23 @@ class _ReTraceAppState extends State<ReTraceApp> {
                         _session.setUserName(name);
                       }
                       _session.completeOnboarding();
-                      setState(() => _showOnboarding = false);
+                      setState(() {
+                        _showOnboarding = false;
+                        _showInitialCheckIn = true;
+                      });
                     },
                   )
-                : const ReTraceShell(),
+                : _showInitialCheckIn
+                    ? DailyCheckInScreen(
+                        onComplete: (result) {
+                          if (!mounted) return;
+                          if (result != null) {
+                            _session.applyCheckIn(result);
+                          }
+                          setState(() => _showInitialCheckIn = false);
+                        },
+                      )
+                    : const ReTraceShell(),
       ),
     );
   }

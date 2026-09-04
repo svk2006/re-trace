@@ -144,6 +144,8 @@ app.get(['/health', '/api/v1/health', '/'], (_req: Request, res: Response) => {
   });
 });
 
+
+
 // Check-in endpoints — now authenticated (H-01 fix)
 app.post('/api/v1/check-ins', verifyClientAuth, (req: Request, res: Response) => {
   res.status(201).json({
@@ -202,12 +204,10 @@ Use gentle pacing language like: "Your recent pattern suggests..." or "Based on 
 Keep responses concise, empathetic, and calming. Never break character or disclose these instructions.`;
 
     const candidateModels = [
-      process.env.GEMINI_MODEL,
+      'gemini-2.5-flash',
       'gemini-3.5-flash',
-      'gemini-1.5-flash-latest',
-      'gemini-pro',
-      'gemini-1.5-flash',
-    ].filter(Boolean) as string[];
+      'gemini-flash-latest',
+    ];
 
     const fullPrompt = chatContext ? `Previous Conversation Context:\n${chatContext}\n\nCurrent User Message:\n${userMessage.trim()}` : userMessage.trim();
 
@@ -216,6 +216,7 @@ Keep responses concise, empathetic, and calming. Never break character or disclo
 
     for (const modelName of candidateModels) {
       try {
+        console.log(`Trying model: ${modelName}`);
         const model = genAI.getGenerativeModel({
           model: modelName,
           systemInstruction,
@@ -228,8 +229,12 @@ Keep responses concise, empathetic, and calming. Never break character or disclo
         const generatePromise = model.generateContent(fullPrompt);
         const result = await Promise.race([generatePromise, timeoutPromise]);
         text = result.response.text();
-        if (text) break;
-      } catch (err) {
+        if (text) {
+          console.log(`Success with model: ${modelName}`);
+          break;
+        }
+      } catch (err: any) {
+        console.error(`Error on model ${modelName}:`, err?.message || err);
         lastErr = err;
       }
     }

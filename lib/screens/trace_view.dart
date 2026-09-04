@@ -16,7 +16,7 @@ class TraceView extends StatefulWidget {
 }
 
 class _TraceViewState extends State<TraceView> {
-  static const String _defaultApiUrl = 'https://re-trace-be2.vercel.app/api/v1/trace/chat';
+  static const String _defaultApiUrl = 'https://re-trace-be.vercel.app/api/v1/trace/chat';
   // API_URL and CLIENT_SECRET are injected at build time via --dart-define.
   // They intentionally have NO hardcoded defaults — if missing, the app
   // falls back gracefully rather than shipping a secret in source code.
