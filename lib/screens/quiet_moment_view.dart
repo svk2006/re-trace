@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:re_trace/screens/breathe_view.dart';
+import 'package:flutter/services.dart';
+import 'package:re_trace/state/app_session.dart';
 import 'package:re_trace/theme/motion.dart';
 import 'package:re_trace/theme/re_trace_palette.dart';
 import 'package:re_trace/widgets/atmosphere.dart';
@@ -11,79 +13,150 @@ class QuietMomentView extends StatefulWidget {
   State<QuietMomentView> createState() => _QuietMomentViewState();
 }
 
-class _QuietMomentViewState extends State<QuietMomentView> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 4200))
-      ..repeat(reverse: true);
-  }
+class _QuietMomentViewState extends State<QuietMomentView> {
+  int _selectedMinutes = 2;
+  bool _isRunning = false;
+  int _secondsRemaining = 120;
+  Timer? _timer;
 
   @override
   void dispose() {
-    _controller.dispose();
+    _timer?.cancel();
     super.dispose();
+  }
+
+  void _startPause() {
+    setState(() {
+      _isRunning = true;
+      _secondsRemaining = _selectedMinutes * 60;
+    });
+
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      if (_secondsRemaining > 0) {
+        setState(() => _secondsRemaining--);
+      } else {
+        timer.cancel();
+        final session = AppSession.maybeOf(context);
+        if (session != null && session.haptics) {
+          HapticFeedback.heavyImpact();
+        }
+        setState(() => _isRunning = false);
+      }
+    });
+  }
+
+  void _cancelPause() {
+    _timer?.cancel();
+    setState(() => _isRunning = false);
   }
 
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
-    final reduced = !ReTraceMotion.allowAmbient(context);
+
+    // Full zero-stimulation black screen mode while running
+    if (_isRunning) {
+      final mins = _secondsRemaining ~/ 60;
+      final secs = (_secondsRemaining % 60).toString().padLeft(2, '0');
+      return GestureDetector(
+        onTap: _cancelPause,
+        child: Scaffold(
+          backgroundColor: Colors.black,
+          body: SafeArea(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    '$mins:$secs',
+                    style: const TextStyle(
+                      color: Colors.white24,
+                      fontSize: 36,
+                      fontWeight: FontWeight.w300,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Eyes closed · Rest your focus\nTap anywhere to exit',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white12, fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       body: Stack(
         fit: StackFit.expand,
         children: [
           Image.asset('assets/atmosphere/clouds.png', fit: BoxFit.cover),
-          DecoratedBox(decoration: BoxDecoration(color: palette.overlay.withValues(alpha: 0.35))),
+          DecoratedBox(decoration: BoxDecoration(color: palette.overlay.withValues(alpha: 0.6))),
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.fromLTRB(24, 12, 24, 28),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close_rounded)),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close_rounded),
                   ),
-                  const Spacer(),
-                  AnimatedBuilder(
-                    animation: _controller,
-                    builder: (context, _) {
-                      final scale = reduced ? 1.0 : 0.92 + _controller.value * 0.12;
-                      return Transform.scale(
-                        scale: scale,
-                        child: Container(
-                          width: 168,
-                          height: 168,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: RadialGradient(
-                              colors: [
-                                palette.accentGlow.withValues(alpha: 0.8),
-                                palette.accent.withValues(alpha: 0.2),
-                                Colors.transparent,
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                  Text('A moment for yourself.', style: Theme.of(context).textTheme.headlineMedium, textAlign: TextAlign.center),
+                  const SizedBox(height: 16),
+                  Text('Sensory Pause', style: Theme.of(context).textTheme.displayMedium),
                   const SizedBox(height: 8),
                   Text(
-                    'Nothing to do right now. Just be here for a moment.',
+                    'Zero-stimulation dark screen pause to relieve eye strain and cognitive overload.',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: palette.textSecondary),
-                    textAlign: TextAlign.center,
+                  ),
+                  const Spacer(),
+                  Center(
+                    child: Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.black.withValues(alpha: 0.4),
+                        border: Border.all(color: palette.border, width: 2),
+                      ),
+                      child: const Icon(Icons.visibility_off_outlined, size: 48, color: Colors.white70),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Center(
+                    child: Text(
+                      'Choose pause length',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(color: palette.textMuted),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [1, 2, 5].map((mins) {
+                      final isSelected = _selectedMinutes == mins;
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        child: ChoiceChip(
+                          label: Text('$mins min'),
+                          selected: isSelected,
+                          onSelected: (selected) {
+                            if (selected) setState(() => _selectedMinutes = mins);
+                          },
+                        ),
+                      );
+                    }).toList(),
                   ),
                   const Spacer(),
                   GradientCta(
-                    label: 'Start breathing',
-                    onPressed: () => Navigator.of(context).push(createAppRoute(const BreatheView(), immersive: true)),
+                    label: 'Start dark screen pause',
+                    onPressed: _startPause,
                   ),
-                  TextButton(onPressed: () => Navigator.pop(context), child: const Text('Done')),
                 ],
               ),
             ),

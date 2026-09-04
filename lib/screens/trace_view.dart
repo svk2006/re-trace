@@ -28,9 +28,24 @@ class _TraceViewState extends State<TraceView> {
   static const String _clientSecret = String.fromEnvironment('CLIENT_SECRET', defaultValue: 're-trace-hackathon-2026');
 
   final TextEditingController _controller = TextEditingController();
-  final List<TraceMessage> _messages = List.of(MockRepositories.traceHistory);
+  final List<TraceMessage> _messages = [];
   bool _thinking = false;
+  bool _initialized = false;
   Timer? _thinkTimer;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      _initialized = true;
+      final session = AppSession.of(context);
+      _messages.addAll([
+        TraceMessage(text: 'Hi ${session.userName}, how is your recovery looking today?', fromUser: false),
+        const TraceMessage(text: 'I feel a bit tired after a full day.', fromUser: true),
+        const TraceMessage(text: 'That tracks with your recent pattern. A gentler afternoon may help.', fromUser: false),
+      ]);
+    }
+  }
 
   @override
   void dispose() {

@@ -1,9 +1,9 @@
-﻿import 'package:app_core/app_core.dart';
+import 'package:app_core/app_core.dart';
 import 'package:re_trace/repositories/re_trace_repository.dart';
 
 class MockRepositories extends ReTraceRepository {
   static const UserProfile user = UserProfile(
-    name: 'Alex',
+    name: 'Friend',
     recoveryState: 'Steady',
     capacity: 'Moderate',
   );
@@ -140,7 +140,7 @@ class MockRepositories extends ReTraceRepository {
   ];
 
   static const List<TraceMessage> traceHistory = [
-    TraceMessage(text: 'Hi Alex, how is your recovery looking today?', fromUser: false),
+    TraceMessage(text: 'Hi there, how is your recovery looking today?', fromUser: false),
     TraceMessage(text: 'I feel a bit tired after a full day.', fromUser: true),
     TraceMessage(text: 'That tracks with your recent pattern. A gentler afternoon may help.', fromUser: false),
   ];
