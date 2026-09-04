@@ -27,6 +27,7 @@ class _TraceViewState extends State<TraceView> {
   static const String _clientSecret = String.fromEnvironment('CLIENT_SECRET', defaultValue: 're-trace-hackathon-2026');
 
   final TextEditingController _controller = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   final List<TraceMessage> _messages = [];
   bool _thinking = false;
   bool _initialized = false;
@@ -50,7 +51,20 @@ class _TraceViewState extends State<TraceView> {
   void dispose() {
     _thinkTimer?.cancel();
     _controller.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   Future<void> _send(String text) async {
@@ -67,6 +81,7 @@ class _TraceViewState extends State<TraceView> {
       _thinking = true;
       _controller.clear();
     });
+    _scrollToBottom();
     
     try {
       final response = await http.post(
@@ -79,23 +94,31 @@ class _TraceViewState extends State<TraceView> {
           'message': text.trim(),
           'context': contextString,
         }),
-      );
+      ).timeout(const Duration(seconds: 20));
       
       if (!mounted) return;
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final aiMessage = TraceMessage(text: data['response'] ?? '...', fromUser: false);
+        final reply = (data['response'] as String?)?.trim();
+        final aiMessage = TraceMessage(
+          text: (reply != null && reply.isNotEmpty)
+              ? reply
+              : 'I\'m focusing on your steady pacing today. Remember to balance activity with regular quiet rest breaks and listen to your body\'s natural rhythm.',
+          fromUser: false,
+        );
         session.addChatMessage(aiMessage);
         setState(() {
           _thinking = false;
           _messages.add(aiMessage);
         });
+        _scrollToBottom();
       } else {
         setState(() {
           _thinking = false;
-          _messages.add(TraceMessage(text: 'TRACE is offline or busy right now.', fromUser: false));
+          _messages.add(TraceMessage(text: 'TRACE is offline or busy right now. Take a gentle breath.', fromUser: false));
         });
+        _scrollToBottom();
       }
     } catch (e) {
       if (!mounted) return;
@@ -106,6 +129,7 @@ class _TraceViewState extends State<TraceView> {
           fromUser: false,
         ));
       });
+      _scrollToBottom();
     }
   }
 
@@ -135,6 +159,7 @@ class _TraceViewState extends State<TraceView> {
               const SizedBox(height: 12),
               Expanded(
                 child: ListView.builder(
+                  controller: _scrollController,
                   padding: const EdgeInsets.only(top: 8, bottom: 12),
                   itemCount: _messages.length + (_thinking ? 1 : 0),
                   itemBuilder: (context, index) {

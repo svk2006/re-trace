@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:re_trace/data/mock_repositories.dart';
 import 'package:app_core/app_core.dart';
@@ -22,6 +23,9 @@ class _BreatheViewState extends State<BreatheView> with TickerProviderStateMixin
   late Animation<double> _glow;
   final int _selectedDuration = 180;
   bool _completed = false;
+  
+  late AudioPlayer _audioPlayer;
+  bool _isMusicMuted = false;
 
   @override
   void initState() {
@@ -29,10 +33,16 @@ class _BreatheViewState extends State<BreatheView> with TickerProviderStateMixin
     _preset = MockRepositories.breathingPresets[1];
     _breath = AnimationController(vsync: this);
     _session = AnimationController(vsync: this);
+    
+    _audioPlayer = AudioPlayer()
+      ..setReleaseMode(ReleaseMode.loop)
+      ..setVolume(0.20);
+      
     _configureAnimations();
     _session.addStatusListener((status) {
       if (status == AnimationStatus.completed && mounted) {
         _breath.stop();
+        _audioPlayer.stop();
         setState(() => _completed = true);
       }
     });
@@ -89,6 +99,9 @@ class _BreatheViewState extends State<BreatheView> with TickerProviderStateMixin
     }
     _breath.repeat();
     _session.forward();
+    if (!_isMusicMuted) {
+      _audioPlayer.play(AssetSource('audio/ambient-pads-loop.mp3'), volume: 0.20);
+    }
     setState(() {});
   }
 
@@ -97,11 +110,24 @@ class _BreatheViewState extends State<BreatheView> with TickerProviderStateMixin
     if (_session.isAnimating) {
       _session.stop();
       _breath.stop();
+      _audioPlayer.pause();
     } else {
       _breath.repeat();
       _session.forward();
+      if (!_isMusicMuted) {
+        _audioPlayer.resume();
+      }
     }
     setState(() {});
+  }
+
+  void _toggleMusic() {
+    setState(() => _isMusicMuted = !_isMusicMuted);
+    if (_isMusicMuted) {
+      _audioPlayer.pause();
+    } else if (_session.isAnimating && !_completed) {
+      _audioPlayer.resume();
+    }
   }
 
   String _phaseFor(double t) {
@@ -138,6 +164,7 @@ class _BreatheViewState extends State<BreatheView> with TickerProviderStateMixin
 
   @override
   void dispose() {
+    _audioPlayer.dispose();
     _breath.dispose();
     _session.dispose();
     super.dispose();
@@ -177,7 +204,11 @@ class _BreatheViewState extends State<BreatheView> with TickerProviderStateMixin
             const Spacer(),
             Text('Breathe', style: Theme.of(context).textTheme.titleLarge),
             const Spacer(),
-            const SizedBox(width: 48),
+            IconButton(
+              onPressed: _toggleMusic,
+              icon: Icon(_isMusicMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded),
+              color: _isMusicMuted ? palette.textSecondary : palette.textPrimary,
+            ),
           ],
         ),
         const SizedBox(height: 8),
@@ -191,6 +222,7 @@ class _BreatheViewState extends State<BreatheView> with TickerProviderStateMixin
               onSelected: (_) {
                 _breath.stop();
                 _session.stop();
+                _audioPlayer.stop();
                 setState(() => _preset = preset);
                 _configureAnimations();
                 _start();
@@ -279,6 +311,7 @@ class _BreatheViewState extends State<BreatheView> with TickerProviderStateMixin
             _roundButton(Icons.stop_rounded, 'Stop', () {
               _breath.stop();
               _session.stop();
+              _audioPlayer.stop();
               setState(() => _completed = true);
             }),
           ],

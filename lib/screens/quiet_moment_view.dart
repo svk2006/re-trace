@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:re_trace/state/app_session.dart';
@@ -17,11 +18,32 @@ class _QuietMomentViewState extends State<QuietMomentView> {
   bool _isRunning = false;
   int _secondsRemaining = 120;
   Timer? _timer;
+  AudioPlayer? _audioPlayer;
+
+  @override
+  void initState() {
+    super.initState();
+    _audioPlayer = AudioPlayer();
+  }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _audioPlayer?.dispose();
     super.dispose();
+  }
+
+  Future<void> _playNotificationSound() async {
+    try {
+      await _audioPlayer?.stop();
+      await _audioPlayer?.play(AssetSource('audio/alexis_gaming_cam-bell-notification-337658.mp3'));
+    } catch (e) {
+      try {
+        await _audioPlayer?.play(AssetSource('audio/bell_notification.mp3'));
+      } catch (err) {
+        debugPrint('Audio playback error: $err');
+      }
+    }
   }
 
   void _startPause() {
@@ -37,6 +59,7 @@ class _QuietMomentViewState extends State<QuietMomentView> {
         setState(() => _secondsRemaining--);
       } else {
         timer.cancel();
+        _playNotificationSound();
         final session = AppSession.maybeOf(context);
         if (session != null && session.haptics) {
           HapticFeedback.heavyImpact();
