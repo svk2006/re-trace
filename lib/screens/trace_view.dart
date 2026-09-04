@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'package:flutter/material.dart';
-import 'package:re_trace/data/mock_repositories.dart';
 import 'package:app_core/app_core.dart';
 import 'package:re_trace/state/app_session.dart';
 import 'package:re_trace/theme/re_trace_palette.dart';

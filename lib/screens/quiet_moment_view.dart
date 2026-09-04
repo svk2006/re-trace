@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:re_trace/state/app_session.dart';
-import 'package:re_trace/theme/motion.dart';
 import 'package:re_trace/theme/re_trace_palette.dart';
 import 'package:re_trace/widgets/atmosphere.dart';
 
