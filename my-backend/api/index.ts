@@ -203,7 +203,9 @@ Keep responses concise, empathetic, and calming. Never break character or disclo
 
     const candidateModels = [
       process.env.GEMINI_MODEL,
-      'gemini-2.0-flash',
+      'gemini-3.5-flash',
+      'gemini-1.5-flash-latest',
+      'gemini-pro',
       'gemini-1.5-flash',
     ].filter(Boolean) as string[];
 
